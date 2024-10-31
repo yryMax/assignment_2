@@ -25,6 +25,11 @@ static glm::vec3 construct_vec3(const float* pFloats)
     return glm::vec3(pFloats[0], pFloats[1], pFloats[2]);
 }
 
+static glm::vec2 construct_vec2(const float* pFloats)
+{
+    return glm::vec2(pFloats[0], pFloats[1]);
+}
+
 // https://stackoverflow.com/questions/2590677/how-do-i-combine-hash-values-in-c0x
 template <class T>
 static void hash_combine(std::size_t& seed, const T& v)
@@ -92,6 +97,24 @@ std::vector<Mesh> loadMesh(const std::filesystem::path& file, bool centerAndNorm
                 const glm::vec3 v2 = construct_vec3(&inAttrib.vertices[3 * shape.mesh.indices[i + 2].vertex_index]);
                 const auto geometricNormal = glm::normalize(glm::cross(v1 - v0, v2 - v0));
 
+                // calculate tangent and bitangent
+                const glm::vec2 uv0 = inAttrib.texcoords.empty() ? glm::vec2(0) : construct_vec2(&inAttrib.texcoords[2 * shape.mesh.indices[i + 0].texcoord_index]);
+                const glm::vec2 uv1 = inAttrib.texcoords.empty() ? glm::vec2(0) : construct_vec2(&inAttrib.texcoords[2 * shape.mesh.indices[i + 1].texcoord_index]);
+                const glm::vec2 uv2 = inAttrib.texcoords.empty() ? glm::vec2(0) : construct_vec2(&inAttrib.texcoords[2 * shape.mesh.indices[i + 2].texcoord_index]);
+
+
+                glm::vec3 edge1 = v1 - v0;
+                glm::vec3 edge2 = v2 - v0;
+                glm::vec2 deltaUV1 = uv1 - uv0;
+                glm::vec2 deltaUV2 = uv2 - uv0;
+
+                float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+                glm::vec3 tangent = f * (deltaUV2.y * edge1 - deltaUV1.y * edge2);
+                glm::vec3 bitangent = f * (-deltaUV2.x * edge1 + deltaUV1.x * edge2);
+
+
+
+
                 // Load the triangle indices and lazily create the vertices.
                 glm::uvec3 triangle;
                 for (unsigned j = 0; j < 3; j++) {
@@ -111,14 +134,30 @@ std::vector<Mesh> loadMesh(const std::filesystem::path& file, bool centerAndNorm
                     if (auto iter = vertexCache.find(vertex); iter != std::end(vertexCache)) {
                         // Already visited this vertex? Reuse it!
                         triangle[j] = iter->second;
+                        mesh.vertices[triangle[j]].tangent += tangent;
+                        mesh.vertices[triangle[j]].bitangent += bitangent;
                     } else {                      
                         // New vertex? Create it and store it in the vertex cache.
+                        vertex.tangent = tangent;
+                        vertex.bitangent = bitangent;
+
                         vertexCache[vertex] = triangle[j] = (unsigned)mesh.vertices.size();
                         mesh.vertices.push_back(vertex);
+
                     }
                 }
                 mesh.triangles.push_back(triangle);
             }
+
+            for (auto& vertex : mesh.vertices) {
+                vertex.tangent = glm::normalize(vertex.tangent);
+                vertex.bitangent = glm::normalize(vertex.bitangent);
+                // print the normal
+            //      printf("normal: %f %f %f\n", vertex.normal.x, vertex.normal.y, vertex.normal.z);
+          //      printf("tangent: %f %f %f\n", vertex.tangent.x, vertex.tangent.y, vertex.tangent.z);
+         //       printf("bitangent: %f %f %f\n", vertex.bitangent.x, vertex.bitangent.y, vertex.bitangent.z);
+            }
+
 
             const auto materialID = shape.mesh.material_ids[startTriangle];
             if (materialID == -1) {
