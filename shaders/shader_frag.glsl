@@ -20,10 +20,5 @@ layout(location = 0) out vec4 fragColor;
 
 void main()
 {
-    vec3 normal = normalize(fragNormal);
-
-
-    if (hasTexCoords)       { fragColor = vec4(texture(colorMap, fragTexCoord).rgb, 1);}
-    else if (useMaterial)   { fragColor = vec4(kd, 1);}
-    else                    { fragColor = vec4(normal, 1); } // Output color value, change from (1, 0, 0) to something else
+    fragColor = vec4(0.8, 0.8, 0.8, 1);
 }

@@ -2,6 +2,7 @@
 #include "mesh.h"
 #include "texture.h"
 #include "CubeMapTexture.h"
+#include "BezierCurve.h"
 #include "framework/trackball.h"
 // Always include window first (because it includes glfw, which includes GL which needs to be included AFTER glew).
 // Can't wait for modules to fix this stuff...
@@ -21,7 +22,10 @@ DISABLE_WARNINGS_POP()
 #include <framework/window.h>
 #include <functional>
 #include <iostream>
+#include <functional>
 #include <vector>
+#include <ctime>
+#include <cstdlib>
 
 std::vector<std::filesystem::path> faces = {
     RESOURCE_ROOT "resources/environment_map/right.jpg",
@@ -32,6 +36,8 @@ std::vector<std::filesystem::path> faces = {
     RESOURCE_ROOT "resources/environment_map/back.jpg"
 };
 
+
+
 class Application {
 public:
     Application()
@@ -41,21 +47,10 @@ public:
             m_env_map(faces),
             m_trackball { &m_window, glm::radians(50.0f) }
     {
-        m_window.registerKeyCallback([this](int key, int scancode, int action, int mods) {
-            if (action == GLFW_PRESS)
-                onKeyPressed(key, mods);
-            else if (action == GLFW_RELEASE)
-                onKeyReleased(key, mods);
-        });
-        m_window.registerMouseMoveCallback(std::bind(&Application::onMouseMove, this, std::placeholders::_1));
-        m_window.registerMouseButtonCallback([this](int button, int action, int mods) {
-            if (action == GLFW_PRESS)
-                onMouseClicked(button, mods);
-            else if (action == GLFW_RELEASE)
-                onMouseReleased(button, mods);
-        });
-
-        m_wall = GPUMesh::loadMeshGPU(RESOURCE_ROOT "resources/wall/ball.obj");
+        std::srand(static_cast<unsigned int>(std::time(nullptr)));
+        m_curves = {};
+        m_ball = GPUMesh::loadMeshGPU(RESOURCE_ROOT "resources/wall/ball.obj");
+        m_wall = GPUMesh::loadMeshGPU(RESOURCE_ROOT "resources/wall/wall.obj");
 
         try {
 
@@ -63,6 +58,13 @@ public:
             wallBuilder.addStage(GL_VERTEX_SHADER, RESOURCE_ROOT "shaders/wall_vert.glsl");
             wallBuilder.addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT "Shaders/wall_frag.glsl");
             m_wallShader = wallBuilder.build();
+
+            ShaderBuilder defaultBuilder;
+            defaultBuilder.addStage(GL_VERTEX_SHADER, RESOURCE_ROOT "shaders/shader_vert.glsl");
+            defaultBuilder.addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT "shaders/shader_frag.glsl");
+            m_defaultShader = defaultBuilder.build();
+
+
 
         } catch (ShaderLoadingException e) {
             std::cerr << e.what() << std::endl;
@@ -77,101 +79,155 @@ public:
 
     void update()
     {
-        int dummyInteger = 0; // Initialized to 0
         while (!m_window.shouldClose()) {
             // This is your game loop
             // Put your real-time logic and rendering in here
             m_window.updateInput();
 
             // Use ImGui for easy input/output of ints, floats, strings, etc...
+            std::array displayModeNames { "1: BALL", "2: Curve"};
+
             ImGui::Begin("Window");
-            ImGui::Checkbox("Normal Mapping", &m_useNormalMapping);
-            ImGui::Checkbox("Texture", &m_useTexture);
-            ImGui::Checkbox("Environment Map", &m_useEnvMap);
+
+
+            ImGui::Combo("Scene", &currentMode, displayModeNames.data(), displayModeNames.size());
+            if (currentMode == 0) {
+                ImGui::Checkbox("Normal Mapping", &m_useNormalMapping);
+                ImGui::Checkbox("Texture", &m_useTexture);
+                ImGui::Checkbox("Environment Map", &m_useEnvMap);
+            }
+            if (currentMode == 1) {
+                ImGui::SliderInt("Number of Bullets", &num_bullets, 1, 10);
+                // shoot button
+                if (ImGui::Button("Shoot")) {
+                    m_curves = genCurves();
+                }
+            }
+
             ImGui::End();
 
             // Clear the screen
             glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-            // ...
-            glEnable(GL_DEPTH_TEST);
             m_projectionMatrix = m_trackball.projectionMatrix();
             m_viewMatrix = m_trackball.viewMatrix();
-
-            const glm::mat4 mvpMatrix = m_projectionMatrix * m_viewMatrix * m_modelMatrix;
-            // Normals should be transformed differently than positions (ignoring translations + dealing with scaling):
-            // https://paroj.github.io/gltut/Illumination/Tut09%20Normal%20Transformation.html
-            const glm::mat3 normalModelMatrix = glm::inverseTranspose(glm::mat3(m_modelMatrix));
-
-            // Draw the wall
-            for (GPUMesh& mesh : m_wall) {
-                m_wallShader.bind();
-                glUniformMatrix4fv(m_wallShader.getUniformLocation("mvpMatrix"), 1, GL_FALSE, glm::value_ptr(mvpMatrix));
-                //Uncomment this line when you use the modelMatrix (or fragmentPosition)
-                //glUniformMatrix4fv(m_defaultShader.getUniformLocation("modelMatrix"), 1, GL_FALSE, glm::value_ptr(m_modelMatrix));
-                glUniformMatrix3fv(m_wallShader.getUniformLocation("normalModelMatrix"), 1, GL_FALSE, glm::value_ptr(normalModelMatrix));
-                m_wall_texture.bind(GL_TEXTURE0);
-                glUniform1i(m_wallShader.getUniformLocation("colorMap"), 0);
-                m_wall_normal.bind(GL_TEXTURE1);
-                glUniform1i(m_wallShader.getUniformLocation("normalMap"), 1);
-                glUniform1i(m_wallShader.getUniformLocation("useNormalMapping"), m_useNormalMapping ? GL_TRUE : GL_FALSE);
-                glUniform1i(m_wallShader.getUniformLocation("useTexture"), m_useTexture ? GL_TRUE : GL_FALSE);
-                glUniform1i(m_wallShader.getUniformLocation("useEnvMap"), m_useEnvMap ? GL_TRUE : GL_FALSE);
-                m_env_map.bind(GL_TEXTURE2);
-                glUniform1i(m_wallShader.getUniformLocation("envMap"), 2);
-                glad_glUniform3fv(m_wallShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(m_trackball.position()));
-
-
-                mesh.draw(m_wallShader);
+            switch (currentMode) {
+                case 0:
+                    renderBall();
+                    break;
+                case 1:
+                    renderCurve();
+                    break;
             }
+
 
             m_window.swapBuffers();
         }
     }
 
-    // In here you can handle key presses
-    // key - Integer that corresponds to numbers in https://www.glfw.org/docs/latest/group__keys.html
-    // mods - Any modifier keys pressed, like shift or control
-    void onKeyPressed(int key, int mods)
-    {
-        std::cout << "Key pressed: " << key << std::endl;
+    void renderBall(){
+        // ...
+        glEnable(GL_DEPTH_TEST);
+
+
+        const glm::mat4 mvpMatrix = m_projectionMatrix * m_viewMatrix * m_modelMatrix;
+        const glm::mat3 normalModelMatrix = glm::inverseTranspose(glm::mat3(m_modelMatrix));
+
+        // Draw the wall
+        for (GPUMesh& mesh : m_ball) {
+            m_wallShader.bind();
+            glUniformMatrix4fv(m_wallShader.getUniformLocation("mvpMatrix"), 1, GL_FALSE, glm::value_ptr(mvpMatrix));
+            //Uncomment this line when you use the modelMatrix (or fragmentPosition)
+            //glUniformMatrix4fv(m_defaultShader.getUniformLocation("modelMatrix"), 1, GL_FALSE, glm::value_ptr(m_modelMatrix));
+            glUniformMatrix3fv(m_wallShader.getUniformLocation("normalModelMatrix"), 1, GL_FALSE, glm::value_ptr(normalModelMatrix));
+            m_wall_texture.bind(GL_TEXTURE0);
+            glUniform1i(m_wallShader.getUniformLocation("colorMap"), 0);
+            m_wall_normal.bind(GL_TEXTURE1);
+            glUniform1i(m_wallShader.getUniformLocation("normalMap"), 1);
+            glUniform1i(m_wallShader.getUniformLocation("useNormalMapping"), m_useNormalMapping ? GL_TRUE : GL_FALSE);
+            glUniform1i(m_wallShader.getUniformLocation("useTexture"), m_useTexture ? GL_TRUE : GL_FALSE);
+            glUniform1i(m_wallShader.getUniformLocation("useEnvMap"), m_useEnvMap ? GL_TRUE : GL_FALSE);
+            m_env_map.bind(GL_TEXTURE2);
+            glUniform1i(m_wallShader.getUniformLocation("envMap"), 2);
+            glad_glUniform3fv(m_wallShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(m_trackball.position()));
+            mesh.draw(m_wallShader);
+        }
     }
 
-    // In here you can handle key releases
-    // key - Integer that corresponds to numbers in https://www.glfw.org/docs/latest/group__keys.html
-    // mods - Any modifier keys pressed, like shift or control
-    void onKeyReleased(int key, int mods)
-    {
-        std::cout << "Key released: " << key << std::endl;
+    float randomFloat(float min, float max) {
+
+        float unit =  (float)rand()/RAND_MAX;
+        return min + unit * (max - min);
     }
 
-    // If the mouse is moved this function will be called with the x, y screen-coordinates of the mouse
-    void onMouseMove(const glm::dvec2& cursorPos)
-    {
-        std::cout << "Mouse at position: " << cursorPos.x << " " << cursorPos.y << std::endl;
+    std::vector<BezierCurve> genCurves(){
+        std::vector<BezierCurve> curves;
+        glm::vec3 start_pos = glm::vec3(6.0f, 0.0f, 0.0f);
+        glm::vec3 end_pos = glm::vec3(-6.0f, 0.0f, 0.0f);
+        glm::vec3 offset = glm::vec3(0.0f, 1.0f, 0.0f);
+        // x1 <- (0, 7) y1 <- (-6 , 6) z1 <- (-6, 6)
+        // x2 <- (-7, 0) y2 <- (-6 , 6) z2 <- (-6, 6)
+        // y1y2 同号, z1z2同号
+        for (int i = 0; i < num_bullets; i++) {
+            float y1 = randomFloat(-6.0f, 6.0f);
+            float z1 = randomFloat(-6.0f, 6.0f);
+            float y2 = randomFloat(-6.0f, 6.0f);
+            float z2 = randomFloat(-6.0f, 6.0f);
+
+            if (z1 * z2 < 0) {
+                z1 = -z1;
+            }
+            if (y1 * y2 < 0) {
+                y1 = -y1;
+            }
+            glm::vec3 control1 = glm::vec3(randomFloat(0.0f, 7.0f), y1, z1);
+            glm::vec3 control2 = glm::vec3(randomFloat(-7.0f, 0.0f), y2, z2);
+            BezierCurve curve = BezierCurve(start_pos + offset,
+                                            control1 + offset,
+                                            control2 + offset,
+                                            end_pos + offset);
+            curves.push_back(curve);
+        }
+        return curves;
+
     }
 
-    // If one of the mouse buttons is pressed this function will be called
-    // button - Integer that corresponds to numbers in https://www.glfw.org/docs/latest/group__buttons.html
-    // mods - Any modifier buttons pressed
-    void onMouseClicked(int button, int mods)
-    {
-        std::cout << "Pressed mouse button: " << button << std::endl;
+
+    void renderCurve(){
+        m_defaultShader.bind();
+        glm::vec3 start_pos = glm::vec3(6.0f, 0.0f, 0.0f);
+        glm::vec3 end_pos = glm::vec3(-6.0f, 0.0f, 0.0f);
+        glm::vec3 offset = glm::vec3(0.0f, 1.0f, 0.0f);
+        glm::mat4 wallModelMatrix = glm::translate(m_modelMatrix, end_pos);
+        glm::mat4 ballModelMatrix = glm::translate(m_modelMatrix, start_pos);
+        glm::mat4 mvp = m_projectionMatrix * m_viewMatrix * m_modelMatrix;
+        // Draw the wall
+        for (GPUMesh& mesh : m_wall) {
+
+            glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
+                               GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * wallModelMatrix));
+            mesh.draw(m_defaultShader);
+        }
+        for (GPUMesh& mesh : m_ball) {
+            glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
+                               GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * ballModelMatrix));
+            mesh.draw(m_defaultShader);
+        }
+        glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
+                           GL_FALSE, glm::value_ptr( mvp));
+      //  BezierCurve curve = BezierCurve(start_pos + offset, glm::vec3(6.0f, 0.0f, 6.0f) + offset, glm::vec3(-6.0f, 0.0f, 6.0f) + offset, end_pos + offset);
+      for (BezierCurve curve : m_curves) {
+          curve.draw();
+      }
     }
 
-    // If one of the mouse buttons is released this function will be called
-    // button - Integer that corresponds to numbers in https://www.glfw.org/docs/latest/group__buttons.html
-    // mods - Any modifier buttons pressed
-    void onMouseReleased(int button, int mods)
-    {
-        std::cout << "Released mouse button: " << button << std::endl;
-    }
 
 private:
     Window m_window;
 
     Shader m_wallShader;
+    Shader m_defaultShader;
+    std::vector<GPUMesh> m_ball;
     std::vector<GPUMesh> m_wall;
     bool m_useNormalMapping = false;
     bool m_useTexture = true;
@@ -180,9 +236,11 @@ private:
     Texture m_wall_normal;
     CubeMapTexture m_env_map;
     Trackball m_trackball;
+    std::vector<BezierCurve> m_curves;
 
 
-
+    int currentMode = 1;
+    int num_bullets = 3;
     // Projection and view matrices for you to fill in and use
     glm::mat4 m_projectionMatrix = glm::perspective(glm::radians(80.0f), 1.0f, 0.1f, 30.0f);
     glm::mat4 m_viewMatrix = glm::lookAt(glm::vec3(-3, 3, -3), glm::vec3(0), glm::vec3(0, 1, 0));
