@@ -13,6 +13,12 @@ add_executable(Master_TechDemo
     "src/application.cpp"
     "src/texture.cpp"
 	"src/mesh.cpp"
+        src/CubeMapTexture.h
+		src/CubeMapTexture.h
+		src/CubeMapTexture.cpp
+        src/BezierCurve.cpp
+        src/CelestialBody.cpp
+        src/CelestialBody.h
 )
 
 target_compile_definitions(Master_TechDemo PRIVATE RESOURCE_ROOT="${CMAKE_CURRENT_LIST_DIR}/")

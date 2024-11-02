@@ -15,7 +15,7 @@ GPUMaterial::GPUMaterial(const Material& material) :
 
 GPUMesh::GPUMesh(const Mesh& cpuMesh)
 {
-    // Create uniform buffer to store mesh material (https://learnopengl.com/Advanced-OpenGL/Advanced-GLSL)
+    // Create uniform buffer to store mesh material
     GPUMaterial gpuMaterial(cpuMesh.material);
     glGenBuffers(1, &m_uboMaterial);
     glBindBuffer(GL_UNIFORM_BUFFER, m_uboMaterial);
@@ -38,22 +38,39 @@ GPUMesh::GPUMesh(const Mesh& cpuMesh)
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ibo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(cpuMesh.triangles.size() * sizeof(decltype(cpuMesh.triangles)::value_type)), cpuMesh.triangles.data(), GL_STATIC_DRAW);
 
-    // Tell OpenGL that we will be using vertex attributes 0, 1 and 2.
+    // Tell OpenGL that we will be using vertex attributes 0, 1, 2, 3, and 4.
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
-    // We tell OpenGL what each vertex looks like and how they are mapped to the shader (location = ...).
+    glEnableVertexAttribArray(3);
+    glEnableVertexAttribArray(4);
+
+    // Bind position attribute (location = 0)
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
+
+    // Bind normal attribute (location = 1)
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+
+    // Bind texture coordinate attribute (location = 2)
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, texCoord));
-    // Reuse all attributes for each instance
+
+    // Bind tangent attribute (location = 3)
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, tangent));
+
+    // Bind bitangent attribute (location = 4)
+    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, bitangent));
+
+    // Set vertex attribute divisors for instancing
     glVertexAttribDivisor(0, 0);
     glVertexAttribDivisor(1, 0);
     glVertexAttribDivisor(2, 0);
+    glVertexAttribDivisor(3, 0);
+    glVertexAttribDivisor(4, 0);
 
     // Each triangle has 3 vertices.
     m_numIndices = static_cast<GLsizei>(3 * cpuMesh.triangles.size());
 }
+
 
 GPUMesh::GPUMesh(GPUMesh&& other)
 {
