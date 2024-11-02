@@ -10,6 +10,7 @@ DISABLE_WARNINGS_POP()
 
 #include <exception>
 #include <filesystem>
+#include <chrono>
 #include <framework/opengl_includes.h>
 
 class BezierCurve {
@@ -18,6 +19,7 @@ public:
 
     void draw();
     void cleanup();
+    glm::vec3 get_animation_point(float period) const;
 
 private:
     glm::vec3 getPoint(float t) const;
@@ -25,4 +27,5 @@ private:
     glm::vec3 p0, p1, p2, p3;
     GLuint vao, vbo;
     std::vector<glm::vec3> points;
+    std::chrono::time_point<std::chrono::high_resolution_clock> startTime;
 };

@@ -102,6 +102,8 @@ public:
             }
             if (currentMode == 1) {
                 ImGui::SliderInt("Number of Bullets", &num_bullets, 1, 10);
+                ImGui::Checkbox("Show Curve", &m_showcurve);
+                ImGui::SliderFloat("Speed", &m_speed, 0.1f, 10.0f);
                 // shoot button
                 if (ImGui::Button("Shoot")) {
                     m_curves = genCurves();
@@ -223,8 +225,22 @@ public:
         }
         glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
                            GL_FALSE, glm::value_ptr( mvp));
+        if(m_showcurve) {
+            for (BezierCurve curve: m_curves) {
+                curve.draw();
+            }
+        }
       for (BezierCurve curve : m_curves) {
-          curve.draw();
+          glm::vec3 pos = curve.get_animation_point(10.0 - m_speed);
+     //     std::cout<< pos.x << " " << pos.y << " " << pos.z << std::endl;
+            if (pos == glm::vec3(-1.0f)) continue;
+          glm::mat4 bulletModelMatrix = translationMatrix(pos) * scaleMatrix(glm::vec3(0.1f, 0.1f, 0.1f));
+            glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
+                                 GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * bulletModelMatrix));
+          for (GPUMesh& mesh : m_wall) {
+                mesh.draw(m_defaultShader);
+          }
+
       }
     }
 
@@ -338,9 +354,6 @@ public:
         std::vector<glm::mat4> transforms = computeCelestrialBodyTransformations(time);
         m_defaultShader.bind();
 
-      //  glm::mat4 mvp = m_projectionMatrix * m_viewMatrix * m_modelMatrix;
-       // glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
-        //                   GL_FALSE, glm::value_ptr( mvp));
         glUniform1i(m_defaultShader.getUniformLocation("useMaterial"), GL_TRUE);
         glUniform1i(m_defaultShader.getUniformLocation("colorMap"), 0);
         int i = 0;
@@ -356,7 +369,7 @@ public:
             i++;
         }
 
-         }
+    }
 
 
 private:
@@ -370,6 +383,8 @@ private:
     bool m_useNormalMapping = false;
     bool m_useTexture = true;
     bool m_useEnvMap = false;
+    float m_speed = 9.0f;
+    bool m_showcurve = false;
     Texture m_wall_texture;
     Texture m_wall_normal;
     CubeMapTexture m_env_map;
@@ -379,7 +394,7 @@ private:
 
     // timer
     std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
-    int currentMode = 2;
+    int currentMode = 1;
     int num_bullets = 3;
     // Projection and view matrices for you to fill in and use
     glm::mat4 m_projectionMatrix = glm::perspective(glm::radians(80.0f), 1.0f, 0.1f, 30.0f);

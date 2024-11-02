@@ -21,6 +21,7 @@ BezierCurve::BezierCurve(const glm::vec3& start, const glm::vec3& control1, cons
         float t = i / (float)numSegments;
         points.push_back(getPoint(t));
     }
+    startTime = std::chrono::high_resolution_clock::now();
 
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
@@ -50,5 +51,15 @@ void BezierCurve :: cleanup() {
 glm::vec3 BezierCurve:: getPoint(float t) const {
     float u = 1 - t;
     return u * u * u * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t * p3;
+}
+
+glm::vec3 BezierCurve:: get_animation_point(float period) const {
+    auto now = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration<float>(now - startTime).count();
+    if (elapsed > period) {
+        return glm::vec3(-1.0f);
+    }
+    float t = elapsed / period;
+    return getPoint(t);
 }
 
