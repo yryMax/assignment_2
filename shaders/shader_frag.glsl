@@ -20,5 +20,10 @@ layout(location = 0) out vec4 fragColor;
 
 void main()
 {
+	if (useMaterial) {
+		fragColor = texture(colorMap, fragTexCoord);
+		//fragColor = vec4(1,1,0,1);
+		return;
+	}
     fragColor = vec4(0.8, 0.8, 0.8, 1);
 }

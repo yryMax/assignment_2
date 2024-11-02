@@ -3,6 +3,7 @@
 #include "texture.h"
 #include "CubeMapTexture.h"
 #include "BezierCurve.h"
+#include "CelestialBody.h"
 #include "framework/trackball.h"
 // Always include window first (because it includes glfw, which includes GL which needs to be included AFTER glew).
 // Can't wait for modules to fix this stuff...
@@ -26,6 +27,8 @@ DISABLE_WARNINGS_POP()
 #include <vector>
 #include <ctime>
 #include <cstdlib>
+#include <map>
+#include <chrono>
 
 std::vector<std::filesystem::path> faces = {
     RESOURCE_ROOT "resources/environment_map/right.jpg",
@@ -51,7 +54,8 @@ public:
         m_curves = {};
         m_ball = GPUMesh::loadMeshGPU(RESOURCE_ROOT "resources/wall/ball.obj");
         m_wall = GPUMesh::loadMeshGPU(RESOURCE_ROOT "resources/wall/wall.obj");
-
+        m_solarSystem = loadSolarSystem();
+        m_planet = GPUMesh::loadMeshGPU(RESOURCE_ROOT "resources/planet/planet.obj");
         try {
 
             ShaderBuilder wallBuilder;
@@ -85,7 +89,7 @@ public:
             m_window.updateInput();
 
             // Use ImGui for easy input/output of ints, floats, strings, etc...
-            std::array displayModeNames { "1: BALL", "2: Curve"};
+            std::array displayModeNames { "1: BALL", "2: Curve", "3: Solar System" };
 
             ImGui::Begin("Window");
 
@@ -117,6 +121,9 @@ public:
                     break;
                 case 1:
                     renderCurve();
+                    break;
+                case 2:
+                    renderSolarSystem();
                     break;
             }
 
@@ -202,6 +209,7 @@ public:
         glm::mat4 ballModelMatrix = glm::translate(m_modelMatrix, start_pos);
         glm::mat4 mvp = m_projectionMatrix * m_viewMatrix * m_modelMatrix;
         // Draw the wall
+        glUniform1i(m_defaultShader.getUniformLocation("useMaterial"), GL_FALSE);
         for (GPUMesh& mesh : m_wall) {
 
             glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
@@ -215,11 +223,140 @@ public:
         }
         glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
                            GL_FALSE, glm::value_ptr( mvp));
-      //  BezierCurve curve = BezierCurve(start_pos + offset, glm::vec3(6.0f, 0.0f, 6.0f) + offset, glm::vec3(-6.0f, 0.0f, 6.0f) + offset, end_pos + offset);
       for (BezierCurve curve : m_curves) {
           curve.draw();
       }
     }
+
+    std::vector<CelestialBody> loadSolarSystem() {
+        CelestialBody sun =  {
+                10.0f,
+                60.0f,
+                -1,
+                0.0f,
+                0.0f,
+                "Sun",
+                Texture("resources/solar_system/2k_sun.jpg")
+        };
+
+        CelestialBody mercury = {
+                2.5f,
+                140.f,
+                0,
+                15.7f,
+                8.8f,
+                "Mercury",
+                Texture("resources/solar_system/2k_mercury.jpg")
+        };
+
+        CelestialBody earth = {
+                6.3f,
+                2.4f,
+                0,
+                30.0f,
+                36.5f,
+                "Earth",
+                Texture("resources/solar_system/2k_earth_clouds.jpg")
+        };
+
+        CelestialBody moon = {
+                1.7f,
+                65.0f,
+                2,
+                10.0f,
+                65.0f,
+                "Moon",
+                Texture("resources/solar_system/2k_moon.jpg")
+        };
+        std::vector<CelestialBody> solarSystem;
+        solarSystem.reserve(4);
+        solarSystem.push_back(std::move(sun));
+        solarSystem.push_back(std::move(mercury));
+        solarSystem.push_back(std::move(earth));
+        solarSystem.push_back(std::move(moon));
+        return solarSystem;
+    }
+
+    static glm::mat4 rotationMatrix(float angle, const glm::vec3& axis)
+    {
+        return glm::rotate(glm::identity<glm::mat4>(), angle, axis);
+    }
+    static glm::mat4 translationMatrix(const glm::vec3& translation)
+    {
+        return glm::translate(glm::identity<glm::mat4>(), translation);
+    }
+    static glm::mat4 scaleMatrix(const glm::vec3& scale)
+    {
+        return glm::scale(glm::identity<glm::mat4>(), scale);
+    }
+
+    void calc(int u, std::map<int, glm::mat4>& trans, float time, glm::mat4 m)
+    {
+      //  std::cout << u << std::endl;
+        trans[u] = m;
+        int i = 0;
+        for (CelestialBody &v : m_solarSystem) {
+
+            if (v.getOrbitAround() != u){
+                i++;
+                continue;
+            }
+    //       std::cout << v.getName() << " "<< v.getOrbitAround() << " " << i << std::endl;
+            float rotate =v.getOrbitPeriod();
+            float altitude = v.getOrbitAltitude();
+            float angle = ((time / rotate) - floor(time / rotate)) * 2.0f * glm::pi<float>();
+            glm::mat4 mm = m * rotationMatrix(angle, glm::vec3(0, 1, 0)) * translationMatrix(glm::vec3(altitude, 0, 0)) * rotationMatrix(-angle, glm::vec3(0, 1, 0));
+            calc(i, trans, time, mm);
+            i++;
+        }
+
+    }
+    std::vector<glm::mat4> computeCelestrialBodyTransformations(float time)
+    {
+        std::map<int, glm::mat4> trans;
+        for (int i = 0; i < m_solarSystem.size(); i++) {
+            if (m_solarSystem[i].getOrbitAround() == -1)
+                calc(i, trans, time, glm::identity<glm::mat4>());
+        }
+
+        std::vector<glm::mat4> transforms;
+        for (int i = 0; i < m_solarSystem.size();i++) {
+            float spin = m_solarSystem[i].getSpinPeriod();
+            float angle = ((time / spin) - floor(time / spin)) * 2 * glm::pi<float>();
+            float r = m_solarSystem[i].getRadius();
+            transforms.push_back(trans[i]*scaleMatrix(glm::vec3(r, r, r)) * rotationMatrix(angle, glm::vec3(0, 1, 0)));
+        }
+        return transforms;
+    }
+
+    void renderSolarSystem() {
+        // time
+        std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
+        // timespan in seconds
+        float time = std::chrono::duration<float>(now - start).count();
+
+        std::vector<glm::mat4> transforms = computeCelestrialBodyTransformations(time);
+        m_defaultShader.bind();
+
+      //  glm::mat4 mvp = m_projectionMatrix * m_viewMatrix * m_modelMatrix;
+       // glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
+        //                   GL_FALSE, glm::value_ptr( mvp));
+        glUniform1i(m_defaultShader.getUniformLocation("useMaterial"), GL_TRUE);
+        glUniform1i(m_defaultShader.getUniformLocation("colorMap"), 0);
+        int i = 0;
+
+        for (CelestialBody&body : m_solarSystem) {
+            glm::mat4 mvp = m_projectionMatrix * m_viewMatrix * transforms[i];
+            glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
+                               GL_FALSE, glm::value_ptr(mvp));
+            body.getTexture().bind(GL_TEXTURE0);
+            for (GPUMesh& mesh : m_planet) {
+                mesh.draw(m_defaultShader);
+            }
+            i++;
+        }
+
+         }
 
 
 private:
@@ -229,6 +366,7 @@ private:
     Shader m_defaultShader;
     std::vector<GPUMesh> m_ball;
     std::vector<GPUMesh> m_wall;
+    std::vector<GPUMesh> m_planet;
     bool m_useNormalMapping = false;
     bool m_useTexture = true;
     bool m_useEnvMap = false;
@@ -237,9 +375,11 @@ private:
     CubeMapTexture m_env_map;
     Trackball m_trackball;
     std::vector<BezierCurve> m_curves;
+    std::vector<CelestialBody> m_solarSystem;
 
-
-    int currentMode = 1;
+    // timer
+    std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
+    int currentMode = 2;
     int num_bullets = 3;
     // Projection and view matrices for you to fill in and use
     glm::mat4 m_projectionMatrix = glm::perspective(glm::radians(80.0f), 1.0f, 0.1f, 30.0f);
