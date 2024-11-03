@@ -1,4 +1,5 @@
 //#include "Image.h"
+#include "camera.h"
 #include "mesh.h"
 #include "texture.h"
 // Always include window first (because it includes glfw, which includes GL which needs to be included AFTER glew).
@@ -20,6 +21,7 @@ DISABLE_WARNINGS_POP()
 #include <functional>
 #include <iostream>
 #include <vector>
+
 
 class Application {
 public:
@@ -64,6 +66,13 @@ public:
         }
     }
 
+    Camera camera{ &m_window, glm::vec3(0.0f, 5.1f, 1.0f), -glm::vec3(0.0f, 5.1f, 1.0f) };
+
+    Camera camera2{ &m_window, glm::vec3(1.7f, 1.7f, 0.3f), -glm::vec3(1.7f, 1.7f, 0.3f) };
+
+    Camera* cameraActive = &camera;
+    Camera* lightCamera = &camera2;
+
     void update()
     {
         int dummyInteger = 0; // Initialized to 0
@@ -86,6 +95,13 @@ public:
             // ...
             glEnable(GL_DEPTH_TEST);
 
+            /*const glm::vec3 cameraPos = trackball.position();
+            const glm::mat4 model{ 1.0f };
+
+            const glm::mat4 view = trackball.viewMatrix();
+            const glm::mat4 projection = trackball.projectionMatrix();
+            glm::mat4 mvp = projection * view * model;*/
+
             const glm::mat4 mvpMatrix = m_projectionMatrix * m_viewMatrix * m_modelMatrix;
             // Normals should be transformed differently than positions (ignoring translations + dealing with scaling):
             // https://paroj.github.io/gltut/Illumination/Tut09%20Normal%20Transformation.html
@@ -93,7 +109,12 @@ public:
 
             for (GPUMesh& mesh : m_meshes) {
                 m_defaultShader.bind();
-                glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1, GL_FALSE, glm::value_ptr(mvpMatrix));
+
+                cameraActive->updateInput();
+                const glm::mat4 mvp = m_projectionMatrix * cameraActive->viewMatrix(); // Assume model matrix is identity.
+
+
+                glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1, GL_FALSE, glm::value_ptr(mvp));
                 //Uncomment this line when you use the modelMatrix (or fragmentPosition)
                 //glUniformMatrix4fv(m_defaultShader.getUniformLocation("modelMatrix"), 1, GL_FALSE, glm::value_ptr(m_modelMatrix));
                 glUniformMatrix3fv(m_defaultShader.getUniformLocation("normalModelMatrix"), 1, GL_FALSE, glm::value_ptr(normalModelMatrix));
@@ -109,6 +130,7 @@ public:
                 mesh.draw(m_defaultShader);
             }
 
+
             // Processes input and swaps the window buffer
             m_window.swapBuffers();
         }
@@ -120,6 +142,18 @@ public:
     void onKeyPressed(int key, int mods)
     {
         std::cout << "Key pressed: " << key << std::endl;
+        switch (key) {
+        case 49:
+            cameraActive = &camera;
+            lightCamera = &camera2;
+            break;
+        case 50:
+            cameraActive = &camera2;
+            lightCamera = &camera;
+            break;
+        default:
+            break;
+        }
     }
 
     // In here you can handle key releases
@@ -164,7 +198,10 @@ private:
     bool m_useMaterial { true };
 
     // Projection and view matrices for you to fill in and use
-    glm::mat4 m_projectionMatrix = glm::perspective(glm::radians(80.0f), 1.0f, 0.1f, 30.0f);
+    //glm::mat4 m_projectionMatrix = glm::perspective(glm::radians(80.0f), 1.0f, 0.1f, 30.0f);
+    float fov = glm::pi<float>() / 4.0f;
+    float aspect = static_cast<float>(800) / static_cast<float>(600);
+    glm::mat4 m_projectionMatrix = glm::perspective(fov, aspect, 0.1f, 30.0f);
     glm::mat4 m_viewMatrix = glm::lookAt(glm::vec3(-1, 1, -1), glm::vec3(0), glm::vec3(0, 1, 0));
     glm::mat4 m_modelMatrix { 1.0f };
 };
