@@ -89,12 +89,12 @@ public:
             m_window.updateInput();
 
             // Use ImGui for easy input/output of ints, floats, strings, etc...
-            std::array displayModeNames { "1: BALL", "2: Curve", "3: Solar System" };
+            const char* displayModeNames[] = { "1: BALL", "2: Curve", "3: SolarSystem"};
 
             ImGui::Begin("Window");
 
 
-            ImGui::Combo("Scene", &currentMode, displayModeNames.data(), displayModeNames.size());
+            ImGui::Combo("Scene", &currentMode, displayModeNames, IM_ARRAYSIZE(displayModeNames));
             if (currentMode == 0) {
                 ImGui::Checkbox("Normal Mapping", &m_useNormalMapping);
                 ImGui::Checkbox("Texture", &m_useTexture);
