@@ -48,8 +48,16 @@ public:
             m_wall_texture(RESOURCE_ROOT "resources/wall/texture.jpg"),
             m_wall_normal(RESOURCE_ROOT "resources/wall/normal.jpg"),
             m_env_map(faces),
-            m_trackball { &m_window, glm::radians(50.0f) }
+            m_trackball { &m_window, glm::radians(50.0f) },
+            m_trackball2 { &m_window, glm::radians(50.0f) }
     {
+        m_window.registerKeyCallback([this](int key, int scancode, int action, int mods) {
+            if (action == GLFW_PRESS) {
+                onKeyPressed(key, mods);
+            }
+        });
+
+
         std::srand(static_cast<unsigned int>(std::time(nullptr)));
         m_curves = {};
         m_ball = GPUMesh::loadMeshGPU(RESOURCE_ROOT "resources/wall/ball.obj");
@@ -78,7 +86,12 @@ public:
         glm::vec3 lookAt = glm::vec3(-0.215165, 0.305033, 0.645589);
         glm::vec3 rotations = glm::vec3(0.450295, 0.617848, 0.0);
         float dist = 3.0f;
+        glm::vec3 lookAt2 = glm::vec3(-0.215165, 0.305033, 0.645589);
+        glm::vec3 rotations2 = glm::vec3(0.450295, 0.617848, 0.0);
+        float dist2 = 10.0f;
         m_trackball.setCamera(lookAt, rotations, dist);
+        m_trackball2.setCamera(lookAt2, rotations2, dist2);
+        active_trackball = &m_trackball;
     }
 
     void update()
@@ -115,8 +128,10 @@ public:
             // Clear the screen
             glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            m_projectionMatrix = m_trackball.projectionMatrix();
-            m_viewMatrix = m_trackball.viewMatrix();
+            /*m_projectionMatrix = m_trackball.projectionMatrix();*/
+            m_projectionMatrix = active_trackball->projectionMatrix();
+            //m_viewMatrix = m_trackball.viewMatrix();
+            m_viewMatrix = active_trackball->viewMatrix();
             switch (currentMode) {
                 case 0:
                     renderBall();
@@ -131,6 +146,21 @@ public:
 
 
             m_window.swapBuffers();
+        }
+    }
+
+    void onKeyPressed(int key, int mods)
+    {
+        std::cout << "Key pressed: " << key << std::endl;
+        switch (key) {
+        case 49:
+            active_trackball = &m_trackball;
+            break;
+        case 50:
+            active_trackball = &m_trackball2;
+            break;
+        default:
+            break;
         }
     }
 
@@ -158,7 +188,8 @@ public:
             glUniform1i(m_wallShader.getUniformLocation("useEnvMap"), m_useEnvMap ? GL_TRUE : GL_FALSE);
             m_env_map.bind(GL_TEXTURE2);
             glUniform1i(m_wallShader.getUniformLocation("envMap"), 2);
-            glad_glUniform3fv(m_wallShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(m_trackball.position()));
+            //glad_glUniform3fv(m_wallShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(m_trackball.position()));
+            glad_glUniform3fv(m_wallShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(active_trackball->position()));
             mesh.draw(m_wallShader);
         }
     }
@@ -350,7 +381,12 @@ public:
         std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
         // timespan in seconds
         float time = std::chrono::duration<float>(now - start).count();
-
+        //time = 1;
+        int j = 0;
+        while (j < 20000000) {
+            j++;
+        }
+        //time++;
         std::vector<glm::mat4> transforms = computeCelestrialBodyTransformations(time);
         m_defaultShader.bind();
 
@@ -369,6 +405,42 @@ public:
             i++;
         }
 
+        //glm::mat4 moonTransform = transforms[1];
+        //glm::vec3 moonPosition = glm::vec3(moonTransform[3]);
+        //glm::mat4 sunTransform = transforms[0];
+        //glm::vec3 sunPosition = glm::vec3(moonTransform[3]);
+
+
+        //glm::vec3 cameraOffset = glm::vec3(0.0f, 0.0f, 25.0f);  // Adjust distance as needed
+        //glm::vec3 cameraPosition = moonPosition + cameraOffset;
+
+        //// 3. Use Moon's position as the look-at point
+        //glm::vec3 lookAtPoint = sunPosition;
+
+        //// 4. Set the trackball camera (m_trackball2) with calculated values
+        //float distance = glm::distance(cameraPosition, moonPosition);  // Adjust as needed
+        //glm::vec3 rotations(0.0f);
+        ////glm::vec3 lookAt = transforms[3].xyz;
+        ////glm::vec3 rotations = glm::vec3(0.450295, 0.617848, 0.0);
+        //float dist = 3.0f;
+        //m_trackball2.setCamera(lookAtPoint, rotations, distance);
+
+        glm::mat4 moonTransform = transforms[1];
+        glm::vec3 moonPosition = glm::vec3(moonTransform[3]);
+        glm::mat4 sunTransform = transforms[0];
+        glm::vec3 sunPosition = glm::vec3(moonTransform[3]);
+
+        glm::vec3 cameraOffset = glm::vec3(0.0f, 0.0f, 50.0f);  // Adjust distance as needed
+        glm::vec3 cameraPosition = moonPosition + cameraOffset;
+
+        // 3. Use Moon's position as the look-at point
+        glm::vec3 lookAtPoint = sunPosition;
+
+        // 4. Set the trackball camera (m_trackball2) with calculated values
+        float distance = glm::distance(cameraPosition, lookAtPoint);  // Adjust as needed
+        glm::vec3 rotations(0.0f);
+        float dist = 3.0f;
+        m_trackball2.setCamera(lookAtPoint, rotations, distance);
     }
 
 
@@ -389,6 +461,8 @@ private:
     Texture m_wall_normal;
     CubeMapTexture m_env_map;
     Trackball m_trackball;
+    Trackball m_trackball2;
+    Trackball* active_trackball;
     std::vector<BezierCurve> m_curves;
     std::vector<CelestialBody> m_solarSystem;
 
