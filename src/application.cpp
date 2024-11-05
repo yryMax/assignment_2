@@ -76,6 +76,10 @@ public:
             defaultBuilder.addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT "shaders/shader_frag.glsl");
             m_defaultShader = defaultBuilder.build();
 
+            ShaderBuilder PBRBuilder;
+            PBRBuilder.addStage(GL_VERTEX_SHADER, RESOURCE_ROOT "shaders/PBRshader_vert.glsl");
+            PBRBuilder.addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT "shaders/PBRshader_frag.glsl");
+            m_PBRShader = PBRBuilder.build();
 
 
         } catch (ShaderLoadingException e) {
@@ -86,9 +90,9 @@ public:
         glm::vec3 lookAt = glm::vec3(-0.215165, 0.305033, 0.645589);
         glm::vec3 rotations = glm::vec3(0.450295, 0.617848, 0.0);
         float dist = 3.0f;
-        glm::vec3 lookAt2 = glm::vec3(-0.215165, 0.305033, 0.645589);
+        glm::vec3 lookAt2 = glm::vec3(-0.215165, 1.305033, 0.645589);
         glm::vec3 rotations2 = glm::vec3(0.450295, 0.617848, 0.0);
-        float dist2 = 10.0f;
+        float dist2 = 5.0f;
         m_trackball.setCamera(lookAt, rotations, dist);
         m_trackball2.setCamera(lookAt2, rotations2, dist2);
         active_trackball = &m_trackball;
@@ -102,7 +106,7 @@ public:
             m_window.updateInput();
 
             // Use ImGui for easy input/output of ints, floats, strings, etc...
-            const char* displayModeNames[] = { "1: BALL", "2: Curve", "3: SolarSystem"};
+            const char* displayModeNames[] = { "1: BALL", "2: Curve", "3: SolarSystem", "4: PBRShader"};
 
             ImGui::Begin("Window");
 
@@ -121,6 +125,12 @@ public:
                 if (ImGui::Button("Shoot")) {
                     m_curves = genCurves();
                 }
+            }
+            if (currentMode == 3) {
+                ImGui::SliderFloat("Roughness", &roughness, 0.05, 1);
+                ImGui::SliderFloat("Metallic", &metallic, 0.05, 1);
+                ImGui::ColorEdit3("albedo", &albedo[0]);
+                ImGui::ColorEdit3("lightColor", &lightColor[0]);
             }
 
             ImGui::End();
@@ -141,6 +151,9 @@ public:
                     break;
                 case 2:
                     renderSolarSystem();
+                    break;
+                case 3:
+                    renderPBR();
                     break;
             }
 
@@ -188,9 +201,41 @@ public:
             glUniform1i(m_wallShader.getUniformLocation("useEnvMap"), m_useEnvMap ? GL_TRUE : GL_FALSE);
             m_env_map.bind(GL_TEXTURE2);
             glUniform1i(m_wallShader.getUniformLocation("envMap"), 2);
-            //glad_glUniform3fv(m_wallShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(m_trackball.position()));
             glad_glUniform3fv(m_wallShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(active_trackball->position()));
             mesh.draw(m_wallShader);
+        }
+    }
+
+    void renderPBR() {
+        glEnable(GL_DEPTH_TEST);
+
+        //m_modelMatrix = glm::mat4 { 1.0f };
+        //m_viewMatrix = m_trackball.viewMatrix();
+        //m_projectionMatrix = m_trackball.projectionMatrix();
+        const glm::mat4 mvpMatrix = m_projectionMatrix * m_viewMatrix * m_modelMatrix;
+        const glm::mat3 normalModelMatrix = glm::inverseTranspose(glm::mat3(m_modelMatrix));
+
+        // Draw the wall
+        for (GPUMesh& mesh : m_ball) {
+            m_PBRShader.bind();
+
+            //glVertexAttribPointer(m_PBRShader.getAttributeLocation("position"), 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
+            //glVertexAttribPointer(m_PBRShader.getAttributeLocation("normal"), 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+
+            glUniformMatrix4fv(m_PBRShader.getUniformLocation("mvpMatrix"), 1, GL_FALSE, glm::value_ptr(mvpMatrix));
+
+            //glUniformMatrix4fv(m_PBRShader.getUniformLocation("modelMatrix"), 1, GL_FALSE, glm::value_ptr(m_modelMatrix));
+
+
+            glad_glUniform3fv(m_PBRShader.getUniformLocation("albedo"), 1, glm::value_ptr(albedo));
+            glUniform1f(m_PBRShader.getUniformLocation("metallic"), metallic);
+            glUniform1f(m_PBRShader.getUniformLocation("roughness"), roughness);
+
+            glad_glUniform3fv(m_PBRShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(active_trackball->position()));
+            glad_glUniform3fv(m_PBRShader.getUniformLocation("lightPos"), 1, glm::value_ptr(m_trackball2.position()));
+            glad_glUniform3fv(m_PBRShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
+            
+            mesh.draw(m_PBRShader);
         }
     }
 
@@ -449,6 +494,7 @@ private:
 
     Shader m_wallShader;
     Shader m_defaultShader;
+    Shader m_PBRShader;
     std::vector<GPUMesh> m_ball;
     std::vector<GPUMesh> m_wall;
     std::vector<GPUMesh> m_planet;
@@ -465,6 +511,13 @@ private:
     Trackball* active_trackball;
     std::vector<BezierCurve> m_curves;
     std::vector<CelestialBody> m_solarSystem;
+
+
+    // PBR
+    float roughness = 0.5;
+    float metallic = 0.5;
+    glm::vec3 albedo = glm::vec3(0.5f, 0.0f, 0.0f);
+    glm::vec3 lightColor = glm::vec3(1.0f, 0.5f, 0.0f);
 
     // timer
     std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
