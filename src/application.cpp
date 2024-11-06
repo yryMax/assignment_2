@@ -48,6 +48,8 @@ public:
             m_wall_texture(RESOURCE_ROOT "resources/wall/texture.jpg"),
             m_wall_normal(RESOURCE_ROOT "resources/wall/normal.jpg"),
             m_env_map(faces),
+            m_wall_roughness(RESOURCE_ROOT "resources/wall/roughness.jpg"),
+            m_wall_ambient(RESOURCE_ROOT "resources/wall/ambient.jpg"),
             m_trackball { &m_window, glm::radians(50.0f) },
             m_trackball2 { &m_window, glm::radians(50.0f) }
     {
@@ -116,6 +118,14 @@ public:
                 ImGui::Checkbox("Normal Mapping", &m_useNormalMapping);
                 ImGui::Checkbox("Texture", &m_useTexture);
                 ImGui::Checkbox("Environment Map", &m_useEnvMap);
+                ImGui::Checkbox("PBR", &m_PBR);
+                if (m_PBR) {
+                    ImGui::Checkbox("Roughness Texture", &m_useRoughness);
+                    ImGui::SliderFloat("Metallic", &metallic, 0.0, 1);
+                }
+                ImGui::Checkbox("Ambient Occlusion Texture", &m_useAmbient);
+                ImGui::ColorEdit3("albedo", &albedo[0]);
+                ImGui::ColorEdit3("lightColor", &lightColor[0]);
             }
             if (currentMode == 1) {
                 ImGui::SliderInt("Number of Bullets", &num_bullets, 1, 10);
@@ -125,10 +135,14 @@ public:
                 if (ImGui::Button("Shoot")) {
                     m_curves = genCurves();
                 }
+                ImGui::SliderFloat("Roughness", &roughness, 0.05, 1);
+                ImGui::SliderFloat("Metallic", &metallic, 0.0, 1);
+                ImGui::ColorEdit3("albedo", &albedo[0]);
+                ImGui::ColorEdit3("lightColor", &lightColor[0]);
             }
             if (currentMode == 3) {
                 ImGui::SliderFloat("Roughness", &roughness, 0.05, 1);
-                ImGui::SliderFloat("Metallic", &metallic, 0.05, 1);
+                ImGui::SliderFloat("Metallic", &metallic, 0.0, 1);
                 ImGui::ColorEdit3("albedo", &albedo[0]);
                 ImGui::ColorEdit3("lightColor", &lightColor[0]);
             }
@@ -196,11 +210,29 @@ public:
             glUniform1i(m_wallShader.getUniformLocation("colorMap"), 0);
             m_wall_normal.bind(GL_TEXTURE1);
             glUniform1i(m_wallShader.getUniformLocation("normalMap"), 1);
+
             glUniform1i(m_wallShader.getUniformLocation("useNormalMapping"), m_useNormalMapping ? GL_TRUE : GL_FALSE);
             glUniform1i(m_wallShader.getUniformLocation("useTexture"), m_useTexture ? GL_TRUE : GL_FALSE);
             glUniform1i(m_wallShader.getUniformLocation("useEnvMap"), m_useEnvMap ? GL_TRUE : GL_FALSE);
             m_env_map.bind(GL_TEXTURE2);
             glUniform1i(m_wallShader.getUniformLocation("envMap"), 2);
+
+            m_wall_roughness.bind(GL_TEXTURE4);
+            glUniform1i(m_wallShader.getUniformLocation("roughnessMap"), 4);
+            m_wall_ambient.bind(GL_TEXTURE5);
+            glUniform1i(m_wallShader.getUniformLocation("ambientMap"), 5);
+            glUniform1i(m_wallShader.getUniformLocation("usePBR"), m_PBR ? GL_TRUE : GL_FALSE);
+            glUniform1i(m_wallShader.getUniformLocation("useRoughness"), m_useRoughness ? GL_TRUE : GL_FALSE);
+            glUniform1i(m_wallShader.getUniformLocation("useAmbient"), m_useAmbient ? GL_TRUE : GL_FALSE);
+
+            glUniformMatrix4fv(m_wallShader.getUniformLocation("mvpMatrix"), 1, GL_FALSE, glm::value_ptr(mvpMatrix));
+            glad_glUniform3fv(m_wallShader.getUniformLocation("albedo"), 1, glm::value_ptr(albedo));
+            glUniform1f(m_wallShader.getUniformLocation("metallic"), metallic);
+
+            glad_glUniform3fv(m_wallShader.getUniformLocation("lightPos"), 1, glm::value_ptr(m_trackball2.position()));
+            glad_glUniform3fv(m_wallShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
+
+
             glad_glUniform3fv(m_wallShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(active_trackball->position()));
             mesh.draw(m_wallShader);
         }
@@ -221,12 +253,8 @@ public:
 
             //glVertexAttribPointer(m_PBRShader.getAttributeLocation("position"), 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
             //glVertexAttribPointer(m_PBRShader.getAttributeLocation("normal"), 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
-
-            glUniformMatrix4fv(m_PBRShader.getUniformLocation("mvpMatrix"), 1, GL_FALSE, glm::value_ptr(mvpMatrix));
-
             //glUniformMatrix4fv(m_PBRShader.getUniformLocation("modelMatrix"), 1, GL_FALSE, glm::value_ptr(m_modelMatrix));
-
-
+            glUniformMatrix4fv(m_PBRShader.getUniformLocation("mvpMatrix"), 1, GL_FALSE, glm::value_ptr(mvpMatrix));
             glad_glUniform3fv(m_PBRShader.getUniformLocation("albedo"), 1, glm::value_ptr(albedo));
             glUniform1f(m_PBRShader.getUniformLocation("metallic"), metallic);
             glUniform1f(m_PBRShader.getUniformLocation("roughness"), roughness);
@@ -234,7 +262,6 @@ public:
             glad_glUniform3fv(m_PBRShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(active_trackball->position()));
             glad_glUniform3fv(m_PBRShader.getUniformLocation("lightPos"), 1, glm::value_ptr(m_trackball2.position()));
             glad_glUniform3fv(m_PBRShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
-            
             mesh.draw(m_PBRShader);
         }
     }
@@ -279,7 +306,8 @@ public:
 
 
     void renderCurve(){
-        m_defaultShader.bind();
+        //m_defaultShader.bind();
+        m_PBRShader.bind();
         glm::vec3 start_pos = glm::vec3(6.0f, 0.0f, 0.0f);
         glm::vec3 end_pos = glm::vec3(-6.0f, 0.0f, 0.0f);
         glm::vec3 offset = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -287,20 +315,39 @@ public:
         glm::mat4 ballModelMatrix = glm::translate(m_modelMatrix, start_pos);
         glm::mat4 mvp = m_projectionMatrix * m_viewMatrix * m_modelMatrix;
         // Draw the wall
-        glUniform1i(m_defaultShader.getUniformLocation("useMaterial"), GL_FALSE);
+        //glUniform1i(m_PBRShader.getUniformLocation("useMaterial"), GL_FALSE);
         for (GPUMesh& mesh : m_wall) {
+            glUniformMatrix4fv(m_PBRShader.getUniformLocation("mvpMatrix"), 1, GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * wallModelMatrix));
+            glad_glUniform3fv(m_PBRShader.getUniformLocation("albedo"), 1, glm::value_ptr(albedo));
+            glUniform1f(m_PBRShader.getUniformLocation("metallic"), metallic);
+            glUniform1f(m_PBRShader.getUniformLocation("roughness"), 1.0f);
 
-            glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
+            glad_glUniform3fv(m_PBRShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(active_trackball->position()));
+            glad_glUniform3fv(m_PBRShader.getUniformLocation("lightPos"), 1, glm::value_ptr(m_trackball2.position()));
+            glad_glUniform3fv(m_PBRShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
+            mesh.draw(m_PBRShader);
+            /*glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
                                GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * wallModelMatrix));
-            mesh.draw(m_defaultShader);
+            mesh.draw(m_defaultShader);*/
         }
         for (GPUMesh& mesh : m_ball) {
-            glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
+            glUniformMatrix4fv(m_PBRShader.getUniformLocation("mvpMatrix"), 1, GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * ballModelMatrix));
+            glad_glUniform3fv(m_PBRShader.getUniformLocation("albedo"), 1, glm::value_ptr(albedo));
+            glUniform1f(m_PBRShader.getUniformLocation("metallic"), metallic);
+            glUniform1f(m_PBRShader.getUniformLocation("roughness"), roughness);
+
+            glad_glUniform3fv(m_PBRShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(active_trackball->position()));
+            glad_glUniform3fv(m_PBRShader.getUniformLocation("lightPos"), 1, glm::value_ptr(m_trackball2.position()));
+            glad_glUniform3fv(m_PBRShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
+            mesh.draw(m_PBRShader);
+            /*glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
                                GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * ballModelMatrix));
-            mesh.draw(m_defaultShader);
+            mesh.draw(m_defaultShader);*/
         }
-        glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
-                           GL_FALSE, glm::value_ptr( mvp));
+        glUniformMatrix4fv(m_PBRShader.getUniformLocation("mvpMatrix"), 1,
+            GL_FALSE, glm::value_ptr(mvp));
+        /*glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
+                           GL_FALSE, glm::value_ptr( mvp));*/
         if(m_showcurve) {
             for (BezierCurve curve: m_curves) {
                 curve.draw();
@@ -311,10 +358,21 @@ public:
      //     std::cout<< pos.x << " " << pos.y << " " << pos.z << std::endl;
             if (pos == glm::vec3(-1.0f)) continue;
           glm::mat4 bulletModelMatrix = translationMatrix(pos) * scaleMatrix(glm::vec3(0.1f, 0.1f, 0.1f));
-            glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
-                                 GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * bulletModelMatrix));
+
+          glUniformMatrix4fv(m_PBRShader.getUniformLocation("mvpMatrix"), 1, GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * bulletModelMatrix));
+          glad_glUniform3fv(m_PBRShader.getUniformLocation("albedo"), 1, glm::value_ptr(albedo));
+          glUniform1f(m_PBRShader.getUniformLocation("metallic"), 1.0f);
+          glUniform1f(m_PBRShader.getUniformLocation("roughness"), 0.5f);
+
+          glad_glUniform3fv(m_PBRShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(active_trackball->position()));
+          glad_glUniform3fv(m_PBRShader.getUniformLocation("lightPos"), 1, glm::value_ptr(m_trackball2.position()));
+          glad_glUniform3fv(m_PBRShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
+
+            /*glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
+                                 GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * bulletModelMatrix));*/
           for (GPUMesh& mesh : m_wall) {
-                mesh.draw(m_defaultShader);
+                mesh.draw(m_PBRShader);
+                //mesh.draw(m_defaultShader);
           }
 
       }
@@ -426,12 +484,6 @@ public:
         std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
         // timespan in seconds
         float time = std::chrono::duration<float>(now - start).count();
-        //time = 1;
-        int j = 0;
-        while (j < 20000000) {
-            j++;
-        }
-        //time++;
         std::vector<glm::mat4> transforms = computeCelestrialBodyTransformations(time);
         m_defaultShader.bind();
 
@@ -449,40 +501,17 @@ public:
             }
             i++;
         }
-
-        //glm::mat4 moonTransform = transforms[1];
-        //glm::vec3 moonPosition = glm::vec3(moonTransform[3]);
-        //glm::mat4 sunTransform = transforms[0];
-        //glm::vec3 sunPosition = glm::vec3(moonTransform[3]);
-
-
-        //glm::vec3 cameraOffset = glm::vec3(0.0f, 0.0f, 25.0f);  // Adjust distance as needed
-        //glm::vec3 cameraPosition = moonPosition + cameraOffset;
-
-        //// 3. Use Moon's position as the look-at point
-        //glm::vec3 lookAtPoint = sunPosition;
-
-        //// 4. Set the trackball camera (m_trackball2) with calculated values
-        //float distance = glm::distance(cameraPosition, moonPosition);  // Adjust as needed
-        //glm::vec3 rotations(0.0f);
-        ////glm::vec3 lookAt = transforms[3].xyz;
-        ////glm::vec3 rotations = glm::vec3(0.450295, 0.617848, 0.0);
-        //float dist = 3.0f;
-        //m_trackball2.setCamera(lookAtPoint, rotations, distance);
-
         glm::mat4 moonTransform = transforms[1];
         glm::vec3 moonPosition = glm::vec3(moonTransform[3]);
         glm::mat4 sunTransform = transforms[0];
         glm::vec3 sunPosition = glm::vec3(moonTransform[3]);
 
-        glm::vec3 cameraOffset = glm::vec3(0.0f, 0.0f, 50.0f);  // Adjust distance as needed
+        glm::vec3 cameraOffset = glm::vec3(0.0f, 0.0f, 50.0f);
         glm::vec3 cameraPosition = moonPosition + cameraOffset;
 
-        // 3. Use Moon's position as the look-at point
         glm::vec3 lookAtPoint = sunPosition;
 
-        // 4. Set the trackball camera (m_trackball2) with calculated values
-        float distance = glm::distance(cameraPosition, lookAtPoint);  // Adjust as needed
+        float distance = glm::distance(cameraPosition, lookAtPoint);
         glm::vec3 rotations(0.0f);
         float dist = 3.0f;
         m_trackball2.setCamera(lookAtPoint, rotations, distance);
@@ -501,9 +530,14 @@ private:
     bool m_useNormalMapping = false;
     bool m_useTexture = true;
     bool m_useEnvMap = false;
+    bool m_PBR = false;
+    bool m_useRoughness = false;
+    bool m_useAmbient = false;
     float m_speed = 9.0f;
     bool m_showcurve = false;
     Texture m_wall_texture;
+    Texture m_wall_roughness;
+    Texture m_wall_ambient;
     Texture m_wall_normal;
     CubeMapTexture m_env_map;
     Trackball m_trackball;
@@ -514,10 +548,10 @@ private:
 
 
     // PBR
-    float roughness = 0.5;
-    float metallic = 0.5;
-    glm::vec3 albedo = glm::vec3(0.5f, 0.0f, 0.0f);
-    glm::vec3 lightColor = glm::vec3(1.0f, 0.5f, 0.0f);
+    float roughness = 0.05;
+    float metallic = 0.05;
+    glm::vec3 albedo = glm::vec3(1.0f, 0.0f, 0.0f);
+    glm::vec3 lightColor = glm::vec3(1.0f, 0.0f, 0.0f);
 
     // timer
     std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();
