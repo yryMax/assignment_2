@@ -5,7 +5,16 @@ Group 30
 #### Workload distribution
 
 - **Renyi Yang** 5470668: Normal mapping, Environment mapping, Smooth paths, Hierarchical transformations, Move at constant speed along a Bézier curve[extra]. All 100%.
-- 
+- **Thomas Verwaal** 5186595: Multiple viewpoints, PBR shader, Material textures. All 100%.
+
+#### Multiple viewpoints
+We have added two viewpoints in for each scene, you can change between viewpoints using the 1 and 2 keys. For the SolarSystem scene the second viewpoint follows the rotation of mars at a distance. The distance from which the second camera views mars can be adjusted and the camrea can also be rotated around the x, y and z axis of mars. We have also added the option to pause the SolaSystem scene, this feature is not perfect but was usefull for making screenshots. It is hard to show that our camera follows mars with screenshots but nonetheless here are a few screenshots of our different viewpoints. For the first screenshot we moved the default camera to give a top view, the second and third image are a screenshot from the position of the second viewpoint at two different moments.
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./viewpoint1.png" alt="First Image" style="width:33%;">
+  <img src="./viewpoint2.png" alt="Second Image" style="width:33%;">
+  <img src="./viewpoint3.png" alt="Second Image" style="width:33%;">
+</div>
 
 #### Normal mapping
 
@@ -37,7 +46,8 @@ Environment texture is from: https://github.com/Well-Jing/3D-version-Gaunlet/tre
 
 We simulate bullet trajectory using cubic Bézier curves. a Bézier curve is defined by 
 $$
-\mathbf{B}(t) = (1 - t)^3 \mathbf{P}_0 + 3 (1 - t)^2 t \mathbf{P}_1 + 3 (1 - t) t^2 \mathbf{P}_2 + t^3 \mathbf{P}_3, \quad 0 \leq t \leq 1.
+\mathbf{B}(t) = (1 - t)^3 \mathbf{P}_0 + 3 (1 - t)^2 t \mathbf{P}_1 + 3 (1 - t) t^2 \mathbf{P}_2 + t^3 \mathbf{P}_3, \quad 0 \leq t \leq 1.
+
 $$
 We use the bullet emitter's position as p0, and target's position as p3, p1 and p2 are randomly sampled points from the same quadrant and within the emitter and the target.
 
