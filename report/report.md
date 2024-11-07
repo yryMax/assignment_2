@@ -152,4 +152,4 @@ We have also added a day night system that can be toggled, to our first scene. I
   <img src="./dayNight1.png" alt="daynight1" style="width:46%;">
   <img src="./dayNight2.png" alt="daynight2" style="width:46%;">
 </div>
-Day night system on (left) and of (right)
+Day night system on (left) and off (right)
