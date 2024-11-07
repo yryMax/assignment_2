@@ -5,7 +5,7 @@ Group 30
 #### Workload distribution
 
 - **Renyi Yang** 5470668: Normal mapping, Environment mapping, Smooth paths, Hierarchical transformations, Move at constant speed along a Bézier curve[extra]. All 100%.
-- **Thomas Verwaal** 5186595: Multiple viewpoints, PBR shader, Material textures. All 100%.
+- **Thomas Verwaal** 5186595: Multiple viewpoints, PBR shader, Material textures, Ambient occlusion[extra]. All 100%.
 
 #### Multiple viewpoints
 We have added two viewpoints in for each scene, you can change between viewpoints using the 1 and 2 keys. For the SolarSystem scene the second viewpoint follows the rotation of mars at a distance. The distance from which the second camera views mars can be adjusted and the camrea can also be rotated around the x, y and z axis of mars. We have also added the option to pause the SolaSystem scene, this feature is not perfect but was usefull for making screenshots. It is hard to show that our camera follows mars with screenshots but nonetheless here are a few screenshots of our different viewpoints. For the first screenshot we moved the default camera to give a top view, the second and third image are a screenshot from the position of the second viewpoint at two different moments.
@@ -72,8 +72,8 @@ We prepare six textures in [+x, -x, +y, -y, +z, -z] axis representing the enviro
 
 Environment texture is from: https://github.com/Well-Jing/3D-version-Gaunlet/tree/main/Release/skybox_darksky
 
-#### Material textures
-Textures are from: https://www.textures.com/download/free-3d-scanned-stone-wall-2x2-3x3-4x4-meters/133264 and https://www.textures.com/download/sci-fi-panel-pbr0331/137280.
+#### Material textures && Ambient occlusion
+Textures are from: https://www.textures.com/download/free-3d-scanned-stone-wall-2x2-3x3-4x4-meters/133264 and https://www.textures.com/download/sci-fi-panel-pbr0331/137280. We are not sure if applying an ambient occlusion texture "counts" as extra feature but it is explained and illustrated here.
 
 Aside from the normal mapping and environment mapping we also added roughness, ambient occlusion and metallic textures. We use the values stored in these textures as inputs for our PBR shader. In our application we combined the PBR shader with the material textures, you can toggle the different textures in the menu. The roughness and metallic textures can only be toggled when the PBR shader is on since these values don't belong to our basic shading (Phong). Below we provide some screenshots of different combinations of our material textures, there are quite a few more combinations possible so launch the applicaton if you want to see more possiblities.
 
