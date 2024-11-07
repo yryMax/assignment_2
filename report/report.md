@@ -5,7 +5,46 @@ Group 30
 #### Workload distribution
 
 - **Renyi Yang** 5470668: Normal mapping, Environment mapping, Smooth paths, Hierarchical transformations, Move at constant speed along a Bézier curve[extra]. All 100%.
-- 
+- **Thomas Verwaal** 5186595: Multiple viewpoints, PBR shader, Material textures, Ambient occlusion[extra]. All 100%.
+
+#### Multiple viewpoints
+We have added two viewpoints in for each scene, you can change between viewpoints using the 1 and 2 keys. For the SolarSystem scene the second viewpoint follows the rotation of mars at a distance. The distance from which the second camera views mars can be adjusted and the camrea can also be rotated around the x, y and z axis of mars. We have also added the option to pause the SolaSystem scene, this feature is not perfect but was usefull for making screenshots. It is hard to show that our camera follows mars with screenshots but nonetheless here are a few screenshots of our different viewpoints. For the first screenshot we moved the default camera to give a top view, the second and third image are a screenshot from the position of the second viewpoint at two different moments.
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./viewpoint1.png" alt="viewpoint 1" style="width:46%;">
+</div>
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./viewpoint2.png" alt="viewpoint 2" style="width:46%;">
+  <img src="./viewpoint3.png" alt="viewpoint 3" style="width:46%;">
+</div>
+
+#### PBR Shader
+We implemented our PBR shader by following two tutorials from LearnOpenGL:
+https://learnopengl.com/PBR/Theory
+https://learnopengl.com/PBR/Lighting
+
+While these tutorials offer complete code examples, we (I, Thomas) aimed to implement the shader from scratch without directly copying the code. For full transparency here’s how I tried to implement the shading without looking at the code:
+First I scanned through the tutorials to see what its about and to get a general understanding of the PBR shading. I then focused on the first tutorial, which explains the various components of the BRDF. I implemented each part of the BRDF by looking at the text explanation and not looking at the code. The code was always provided after the explanation, making it possible to understand the theory first. After implementing the different parts of BRDF I went to the second tutorial, which covers the entire implementation of the rendering equation. The other parts of the rendering equation (not BRDF) were already quite clear for me so I did a quick scroll through the second tutorial and implemented most of the shader without looking at the tutorial. There were a few things I didn’t directly understand at first, so I had to look at the code examples. These things were: The value of the fresnel constant and how to incorporate the metallic factor, the ambient occlusion value used (0.03) and the gamma correction part. For these parts, I used the following code snippets from the tutorial. I have added the source in comments above these code parts:
+vec3 F0 = vec3(0.04); 
+F0 = mix(F0, albedo, metallic);
+vec3 ambient = vec3(0.03) * albedo * ao;
+color = color / (color + vec3(1.0));
+color = pow(color, vec3(1.0/2.2)); 
+
+Now to show how the PBR shader works I downloaded a fish.obj from https://free3d.com/3d-model/fish-v1--996288.html.
+The following screenshots show the effect of the PBR shader with different values for metallic and roughness.
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./pbr1.png" alt="pbr1" style="width:46%;">
+  <img src="./pbr2.png" alt="pbr2" style="width:46%;">
+</div>
+
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./pbr3.png" alt="pbr3" style="width:46%;">
+  <img src="./pbr4.png" alt="pbr4" style="width:46%;">
+</div>
 
 #### Normal mapping
 
@@ -33,11 +72,36 @@ We prepare six textures in [+x, -x, +y, -y, +z, -z] axis representing the enviro
 
 Environment texture is from: https://github.com/Well-Jing/3D-version-Gaunlet/tree/main/Release/skybox_darksky
 
+#### Material textures && Ambient occlusion
+Textures are from: https://www.textures.com/download/free-3d-scanned-stone-wall-2x2-3x3-4x4-meters/133264 and https://www.textures.com/download/sci-fi-panel-pbr0331/137280. We are not sure if applying an ambient occlusion texture "counts" as extra feature but it is explained and illustrated here.
+
+Aside from the normal mapping and environment mapping we also added roughness, ambient occlusion and metallic textures. We use the values stored in these textures as inputs for our PBR shader. In our application we combined the PBR shader with the material textures, you can toggle the different textures in the menu. The roughness and metallic textures can only be toggled when the PBR shader is on since these values don't belong to our basic shading (Phong). Below we provide some screenshots of different combinations of our material textures, there are quite a few more combinations possible so launch the applicaton if you want to see more possiblities.
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./materialtexture1.png" alt="First Image" style="width:46%;">
+  <img src="./materialtexture2.png" alt="First Image" style="width:46%;">
+</div>
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./materialtexture3.png" alt="First Image" style="width:46%;">
+  <img src="./materialtexture4.png" alt="First Image" style="width:46%;">
+</div>
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./materialtexture5.png" alt="First Image" style="width:46%;">
+  <img src="./materialtexture6.png" alt="First Image" style="width:46%;">
+</div>
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./materialtexture7.png" alt="First Image" style="width:46%;">
+</div>
+
 #### Smooth paths
 
 We simulate bullet trajectory using cubic Bézier curves. a Bézier curve is defined by 
 $$
-\mathbf{B}(t) = (1 - t)^3 \mathbf{P}_0 + 3 (1 - t)^2 t \mathbf{P}_1 + 3 (1 - t) t^2 \mathbf{P}_2 + t^3 \mathbf{P}_3, \quad 0 \leq t \leq 1.
+\mathbf{B}(t) = (1 - t)^3 \mathbf{P}_0 + 3 (1 - t)^2 t \mathbf{P}_1 + 3 (1 - t) t^2 \mathbf{P}_2 + t^3 \mathbf{P}_3, \quad 0 \leq t \leq 1.
+
 $$
 We use the bullet emitter's position as p0, and target's position as p3, p1 and p2 are randomly sampled points from the same quadrant and within the emitter and the target.
 
