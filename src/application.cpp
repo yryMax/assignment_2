@@ -102,6 +102,7 @@ public:
 
     void update()
     {
+        // Needed to reset the trackball2 in case it was changed in the SolarSystem
         glm::vec3 lookAt = glm::vec3(-0.215165, 0.305033, 0.645589);
         glm::vec3 rotations = glm::vec3(0.450295, 0.617848, 0.0);
         float dist2 = 5.0f;
@@ -130,6 +131,8 @@ public:
                 ImGui::Checkbox("Ambient Occlusion Texture", &m_useAmbient);
                 ImGui::ColorEdit3("albedo", &albedo[0]);
                 ImGui::ColorEdit3("lightColor", &lightColor[0]);
+                ImGui::Checkbox("Day Night", &dayNight);
+                ImGui::ColorEdit3("moonColor", &moonColor[0]);
             }
             if (currentMode == 1) {
                 ImGui::SliderInt("Number of Bullets", &num_bullets, 1, 10);
@@ -173,8 +176,8 @@ public:
                 case 2:
                     renderSolarSystem();
                     break;
-                    m_trackball2.setCamera(lookAt, rotations, dist2);
                 case 3:
+                    m_trackball2.setCamera(lookAt, rotations, dist2);
                     renderPBR();
                     break;
             }
@@ -186,12 +189,13 @@ public:
 
     void onKeyPressed(int key, int mods)
     {
+        // Change camera with keys 1 and 2
         std::cout << "Key pressed: " << key << std::endl;
         switch (key) {
-        case 49:
+        case GLFW_KEY_1:
             active_trackball = &m_trackball;
             break;
-        case 50:
+        case GLFW_KEY_2:
             active_trackball = &m_trackball2;
             break;
         default:
@@ -206,7 +210,16 @@ public:
 
         const glm::mat4 mvpMatrix = m_projectionMatrix * m_viewMatrix * m_modelMatrix;
         const glm::mat3 normalModelMatrix = glm::inverseTranspose(glm::mat3(m_modelMatrix));
-
+        if (angle < 360) {
+            angle += 0.003;
+        }
+        else {
+            angle = 0;
+        }
+        sun[0] = cos(angle);
+        sun[2] = sin(angle);
+        moon[0] = cos(angle + PI);
+        moon[2] = sin(angle + PI);
         // Draw the wall
         for (GPUMesh& mesh : m_ball) {
             m_wallShader.bind();
@@ -242,6 +255,10 @@ public:
             glUniform1f(m_wallShader.getUniformLocation("roughnessInput"), roughness);
 
             glad_glUniform3fv(m_wallShader.getUniformLocation("lightPos"), 1, glm::value_ptr(m_trackball2.position()));
+            glad_glUniform3fv(m_wallShader.getUniformLocation("sunPos"), 1, glm::value_ptr(sun));
+            glad_glUniform3fv(m_wallShader.getUniformLocation("moonPos"), 1, glm::value_ptr(moon));
+            glad_glUniform3fv(m_wallShader.getUniformLocation("moonColor"), 1, glm::value_ptr(moonColor));
+            glUniform1i(m_wallShader.getUniformLocation("dayNight"), dayNight ? GL_TRUE : GL_FALSE);
             glad_glUniform3fv(m_wallShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
 
 
@@ -477,6 +494,7 @@ public:
             }
             i++;
         }
+        // Set trackball2 to follow mars
         glm::mat4 moonTransform = transforms[1];
         glm::vec3 moonPosition = glm::vec3(moonTransform[3]);
         glm::mat4 sunTransform = transforms[0];
@@ -522,7 +540,15 @@ private:
     Trackball* active_trackball;
     std::vector<BezierCurve> m_curves;
     std::vector<CelestialBody> m_solarSystem;
-    //Varibles to control camera in the SolarSystem scene
+
+    // Day night system
+    glm::vec3 sun = glm::vec3(0, 1, 0);
+    glm::vec3 moon = glm::vec3(0, 0, 0);
+    glm::vec3 moonColor = glm::vec3(float(20.0f/255.0f), float(60.0f/255.0f), float(180.0f/255.0f));
+    float angle = 0;
+    bool dayNight = false;
+
+    // Varibles to control camera in the SolarSystem scene
     float cameraDist = 50.0f;
     glm::vec3 rotationsVec = glm::vec3(0.0f);
     const float PI = 3.14159265359;
@@ -533,7 +559,7 @@ private:
     float roughness = 0.05;
     float metallic = 0.05;
     glm::vec3 albedo = glm::vec3(1.0f, 0.0f, 0.0f);
-    glm::vec3 lightColor = glm::vec3(1.0f, 0.0f, 0.0f);
+    glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, float(220.0f/255.0f));
 
     // timer
     std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();

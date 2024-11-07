@@ -39,6 +39,10 @@ uniform float ao;
 
 uniform vec3 lightPos;
 uniform vec3 lightColor;
+uniform vec3 moonColor;
+uniform vec3 sunPos;
+uniform vec3 moonPos;
+uniform int dayNight;
 
 const float PI = 3.14159265359;
 
@@ -84,6 +88,7 @@ void main()
     vec3 ambient;
     float metallic = metallicInput;
     float roughness = roughnessInput;
+    vec3 lightColor = lightColor;
     fragColor = vec4(0.0f);
     if (useTexture == 1)
     {
@@ -97,7 +102,7 @@ void main()
     if (useAmbient == 1)
     {
         ambientOcclusion = texture(ambientMap, texCoord).r;
-        //ambient constant "0.03" copied from "https://learnopengl.com/PBR/Lighting"
+        // ambient constant "0.03" copied from "https://learnopengl.com/PBR/Lighting"
         ambient = vec3(0.03) * albedo * ambientOcclusion;
     }
     if (useMetallic == 1)
@@ -120,6 +125,17 @@ void main()
     }
 
     if (usePBR == 1){
+        vec3 lightPos = lightPos;
+        int j = 8;
+        // If day night system is enable we only want to have to lightsources, the "sun" and "moon"
+        if (dayNight == 1){
+            lightPos = sunPos;
+            j = 2;
+        }
+        vec3 lightPosDayNight[2] = {
+            vec3(lightPos[0], lightPos[1], lightPos[2]),
+            vec3(moonPos[0], moonPos[1], moonPos[2]),
+        };
         vec3 lightPos2[8] = {
             vec3(lightPos[0], lightPos[1], lightPos[2]),
             vec3(-lightPos[0], lightPos[1], lightPos[2]),
@@ -130,18 +146,27 @@ void main()
             vec3(-lightPos[0], -lightPos[1], -lightPos[2]),
             vec3(lightPos[0], -lightPos[1], -lightPos[2]),
         };
-	    vec3 lightColor2 = lightColor;
 
 	    // These two code lines were copied from "https://learnopengl.com/PBR/Lighting"
 	    // calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
         // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)    
         vec3 F0 = vec3(0.04); 
         F0 = mix(F0, albedo, metallic);
-
 	    vec3 color = vec3(0.0f);
-	    for (int i = 0; i < 8; i++){
+        vec3 currLightPos;
+        // Calculate the rendering equation for every light
+	    for (int i = 0; i < j; i++){
+            if (i == 1){
+                lightColor = moonColor;
+            }
+            if (dayNight == 1) {
+                currLightPos = lightPosDayNight[i];
+            }
+            else {
+                currLightPos = lightPos2[i];
+            }
 		    vec3 viewDir = normalize(cameraPos - fragPosition);
-		    vec3 lightDir = normalize(lightPos2[i] - fragPosition);
+		    vec3 lightDir = normalize(currLightPos - fragPosition);
 		    vec3 halfwayVector = normalize(lightDir + viewDir);
 		    float D = normalDistribution(normal, halfwayVector, roughness);
 		    float G = geometry(normal, viewDir, lightDir, roughness);
@@ -155,7 +180,7 @@ void main()
 		    vec3 kd = vec3(1.0f) - ks;
 		    kd = kd * (1.0 - metallic);
 
-		    vec3 radiance = lightColor2 / (length(lightPos2[i] - fragPosition) * length(lightPos2[i] - fragPosition));
+		    vec3 radiance = lightColor / (length(currLightPos - fragPosition) * length(currLightPos - fragPosition));
 		    color += (kd * albedo / PI + BRDF) * radiance * max(dot(normal, lightDir), 0.0);
 	    }
 	    color += ambient;
@@ -167,12 +192,20 @@ void main()
     }
     else if (useEnvMap != 1) {
         // phong shading
-        vec3 lightDir = normalize(vec3(1, -1, 0));
+        vec3 lightDir = normalize(vec3(1, 0, 0));
+        vec3 diffuse2 = vec3(0.0f);
+        // If dayNight also add the color from the "moonlight"
+        if (dayNight == 1){
+            lightDir = normalize(sunPos);
+            vec3 lightDir2 = normalize(moonPos);
+            float diff2 = max(dot(normal, lightDir2), 0.0);
+            diffuse2 = albedo * diff2;
+        }
         float diff = max(dot(normal, lightDir), 0.0);
         vec3 diffuse = albedo * diff;
         if (useAmbient != 1){
             vec3 ambient = albedo * 0.6;
         }
-        fragColor = vec4(diffuse + ambient, 1);
+        fragColor = vec4(lightColor * diffuse + moonColor * diffuse2 + ambient, 1);
     }
 }

@@ -59,6 +59,7 @@ vec3 fresnel(vec3 halfwayVector, vec3 viewDir, vec3 fresnelConstant){
 
 void main()
 {
+	// Create 8 lights from the given lightPos
 	vec3 lightPos2[8] = {
         vec3(lightPos[0], lightPos[1], lightPos[2]),
         vec3(-lightPos[0], lightPos[1], lightPos[2]),
@@ -69,7 +70,6 @@ void main()
         vec3(-lightPos[0], -lightPos[1], -lightPos[2]),
         vec3(lightPos[0], -lightPos[1], -lightPos[2]),
     };
-	vec3 lightColor2 = lightColor;
 	// These two code lines were copied from "https://learnopengl.com/PBR/Lighting"
 	// calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
     // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)    
@@ -77,6 +77,7 @@ void main()
     F0 = mix(F0, albedo, metallic);
 
 	vec3 color = vec3(0.0f);
+	// Calculate the rendering equation for every light
 	for (int i = 0; i < 8; i++){
 		vec3 normal = normalize(fragNormal);
 		vec3 viewDir = normalize(cameraPos - fragPosition);
@@ -94,10 +95,10 @@ void main()
 		vec3 kd = vec3(1.0f) - ks;
 		kd = kd * (1.0 - metallic);
 
-		vec3 radiance = lightColor2 / (length(lightPos2[i] - fragPosition) * length(lightPos2[i] - fragPosition));
+		vec3 radiance = lightColor / (length(lightPos2[i] - fragPosition) * length(lightPos2[i] - fragPosition));
 		color += (kd * albedo / PI + BRDF) * radiance * max(dot(normal, lightDir), 0.0);
 	}
-	//ambient constant "0.03" copied from "https://learnopengl.com/PBR/Lighting"
+	// Ambient constant "0.03" copied from "https://learnopengl.com/PBR/Lighting"
 	vec3 ambient = vec3(0.03) * albedo;
 	color += ambient;
 	// These two code lines were copied from "https://learnopengl.com/PBR/Lighting"
