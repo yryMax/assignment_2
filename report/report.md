@@ -11,12 +11,39 @@ Group 30
 We have added two viewpoints in for each scene, you can change between viewpoints using the 1 and 2 keys. For the SolarSystem scene the second viewpoint follows the rotation of mars at a distance. The distance from which the second camera views mars can be adjusted and the camrea can also be rotated around the x, y and z axis of mars. We have also added the option to pause the SolaSystem scene, this feature is not perfect but was usefull for making screenshots. It is hard to show that our camera follows mars with screenshots but nonetheless here are a few screenshots of our different viewpoints. For the first screenshot we moved the default camera to give a top view, the second and third image are a screenshot from the position of the second viewpoint at two different moments.
 
 <div style="display: flex; justify-content: space-between;">
-  <img src="./viewpoint1.png" alt="First Image" style="width:46%;">
+  <img src="./viewpoint1.png" alt="viewpoint 1" style="width:46%;">
 </div>
 
 <div style="display: flex; justify-content: space-between;">
-  <img src="./viewpoint2.png" alt="Second Image" style="width:46%;">
-  <img src="./viewpoint3.png" alt="Second Image" style="width:46%;">
+  <img src="./viewpoint2.png" alt="viewpoint 2" style="width:46%;">
+  <img src="./viewpoint3.png" alt="viewpoint 3" style="width:46%;">
+</div>
+
+#### PBR Shader
+We implemented our PBR shader by following two tutorials from LearnOpenGL:
+https://learnopengl.com/PBR/Theory
+https://learnopengl.com/PBR/Lighting
+
+While these tutorials offer complete code examples, we (I, Thomas) aimed to implement the shader from scratch without directly copying the code. For full transparency here’s how I tried to implement the shading without looking at the code:
+First I scanned through the tutorials to see what its about and to get a general understanding of the PBR shading. I then focused on the first tutorial, which explains the various components of the BRDF. I implemented each part of the BRDF by looking at the text explanation and not looking at the code. The code was always provided after the explanation, making it possible to understand the theory first. After implementing the different parts of BRDF I went to the second tutorial, which covers the entire implementation of the rendering equation. The other parts of the rendering equation (not BRDF) were already quite clear for me so I did a quick scroll through the second tutorial and implemented most of the shader without looking at the tutorial. There were a few things I didn’t directly understand at first, so I had to look at the code examples. These things were: The value of the fresnel constant and how to incorporate the metallic factor, the ambient occlusion value used (0.03) and the gamma correction part. For these parts, I used the following code snippets from the tutorial. I have added the source in comments above these code parts:
+vec3 F0 = vec3(0.04); 
+F0 = mix(F0, albedo, metallic);
+vec3 ambient = vec3(0.03) * albedo * ao;
+color = color / (color + vec3(1.0));
+color = pow(color, vec3(1.0/2.2)); 
+
+Now to show how the PBR shader works I downloaded a fish.obj from https://free3d.com/3d-model/fish-v1--996288.html.
+The following screenshots show the effect of the PBR shader with different values for metallic and roughness.
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./pbr1" alt="pbr1" style="width:46%;">
+  <img src="./pbr2" alt="pbr2" style="width:46%;">
+</div>
+
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./pbr3" alt="pbr3" style="width:46%;">
+  <img src="./pbr4" alt="pbr4" style="width:46%;">
 </div>
 
 #### Normal mapping
