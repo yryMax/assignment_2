@@ -36,14 +36,14 @@ Now to show how the PBR shader works I downloaded a fish.obj from https://free3d
 The following screenshots show the effect of the PBR shader with different values for metallic and roughness.
 
 <div style="display: flex; justify-content: space-between;">
-  <img src="./pbr1" alt="pbr1" style="width:46%;">
-  <img src="./pbr2" alt="pbr2" style="width:46%;">
+  <img src="./pbr1.png" alt="pbr1" style="width:46%;">
+  <img src="./pbr2.png" alt="pbr2" style="width:46%;">
 </div>
 
 
 <div style="display: flex; justify-content: space-between;">
-  <img src="./pbr3" alt="pbr3" style="width:46%;">
-  <img src="./pbr4" alt="pbr4" style="width:46%;">
+  <img src="./pbr3.png" alt="pbr3" style="width:46%;">
+  <img src="./pbr4.png" alt="pbr4" style="width:46%;">
 </div>
 
 #### Normal mapping
