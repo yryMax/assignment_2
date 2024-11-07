@@ -5,7 +5,7 @@ Group 30
 #### Workload distribution
 
 - **Renyi Yang** 5470668: Normal mapping, Environment mapping, Smooth paths, Hierarchical transformations, Move at constant speed along a Bézier curve[extra]. All 100%.
-- **Thomas Verwaal** 5186595: Multiple viewpoints, PBR shader, Material textures, Ambient occlusion[extra]. All 100%.
+- **Thomas Verwaal** 5186595: Multiple viewpoints, PBR shader, Material textures, Ambient occlusion[extra], Day night system[extra]. All 100%.
 
 #### Multiple viewpoints
 We have added two viewpoints in for each scene, you can change between viewpoints using the 1 and 2 keys. For the SolarSystem scene the second viewpoint follows the rotation of mars at a distance. The distance from which the second camera views mars can be adjusted and the camrea can also be rotated around the x, y and z axis of mars. We have also added the option to pause the SolaSystem scene, this feature is not perfect but was usefull for making screenshots. It is hard to show that our camera follows mars with screenshots but nonetheless here are a few screenshots of our different viewpoints. For the first screenshot we moved the default camera to give a top view, the second and third image are a screenshot from the position of the second viewpoint at two different moments.
@@ -33,18 +33,19 @@ color = color / (color + vec3(1.0));
 color = pow(color, vec3(1.0/2.2)); 
 
 Now to show how the PBR shader works I downloaded a fish.obj from https://free3d.com/3d-model/fish-v1--996288.html.
-The following screenshots show the effect of the PBR shader with different values for metallic and roughness.
+The following screenshots show the effect of the PBR shader with different values for metallic and roughness. This feature on its own can be seen in scene 4: PBRShader, were you can adjust the values for metallic and roughness.
 
 <div style="display: flex; justify-content: space-between;">
   <img src="./pbr1.png" alt="pbr1" style="width:46%;">
   <img src="./pbr2.png" alt="pbr2" style="width:46%;">
 </div>
-
+Roughness and Metallic 0 (left) and Roughness 1 and Metallic 0 (right)
 
 <div style="display: flex; justify-content: space-between;">
   <img src="./pbr3.png" alt="pbr3" style="width:46%;">
   <img src="./pbr4.png" alt="pbr4" style="width:46%;">
 </div>
+Roughness 0 and Metallic 1 (left) and Roughness 1 and Metallic 1 (right)
 
 #### Normal mapping
 
@@ -81,20 +82,24 @@ Aside from the normal mapping and environment mapping we also added roughness, a
   <img src="./materialtexture1.png" alt="First Image" style="width:46%;">
   <img src="./materialtexture2.png" alt="First Image" style="width:46%;">
 </div>
+Normal Mapping with PBR (left) and with Roughness texture (right)
 
 <div style="display: flex; justify-content: space-between;">
   <img src="./materialtexture3.png" alt="First Image" style="width:46%;">
   <img src="./materialtexture4.png" alt="First Image" style="width:46%;">
 </div>
+Normal Mapping with PBR and ambient texture (left) and with Roughness texture (right)
 
 <div style="display: flex; justify-content: space-between;">
   <img src="./materialtexture5.png" alt="First Image" style="width:46%;">
   <img src="./materialtexture6.png" alt="First Image" style="width:46%;">
 </div>
+Normal Mapping with PBR and metallic texture (left) and Environment Mapping with PBR and Roughness texture (right)
 
 <div style="display: flex; justify-content: space-between;">
   <img src="./materialtexture7.png" alt="First Image" style="width:46%;">
 </div>
+Everything on
 
 #### Smooth paths
 
@@ -139,3 +144,12 @@ We simulate bullets moving along the trajactory. We define the relative speed by
 </div>
 
 <center>bulltes at start(left) and bullets in the end(right)</center>
+
+#### Day nights system [extra feacture]
+We have also added a day night system that can be toggled, to our first scene. It uses a rotating "sun" and "moon" as lightsources. It can be combined with all other features in this scene except for the environment mapping. Below are some screenshots of the day night system. We see that when the day night system is on that we have to colors, one from the sunlight and one from the moonlight and if it is off we only have 1 color and the rest of the ball is in shadow/dark. This feature is also hard to demonstrate with screenshots so try it out yourself and watch the demo.
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./dayNight1.png" alt="daynight1" style="width:46%;">
+  <img src="./dayNight2.png" alt="daynight2" style="width:46%;">
+</div>
+Day night system on (left) and of (right)
