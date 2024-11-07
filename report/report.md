@@ -11,9 +11,12 @@ Group 30
 We have added two viewpoints in for each scene, you can change between viewpoints using the 1 and 2 keys. For the SolarSystem scene the second viewpoint follows the rotation of mars at a distance. The distance from which the second camera views mars can be adjusted and the camrea can also be rotated around the x, y and z axis of mars. We have also added the option to pause the SolaSystem scene, this feature is not perfect but was usefull for making screenshots. It is hard to show that our camera follows mars with screenshots but nonetheless here are a few screenshots of our different viewpoints. For the first screenshot we moved the default camera to give a top view, the second and third image are a screenshot from the position of the second viewpoint at two different moments.
 
 <div style="display: flex; justify-content: space-between;">
-  <img src="./viewpoint1.png" alt="First Image" style="width:33%;">
-  <img src="./viewpoint2.png" alt="Second Image" style="width:33%;">
-  <img src="./viewpoint3.png" alt="Second Image" style="width:33%;">
+  <img src="./viewpoint1.png" alt="First Image" style="width:46%;">
+</div>
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./viewpoint2.png" alt="Second Image" style="width:46%;">
+  <img src="./viewpoint3.png" alt="Second Image" style="width:46%;">
 </div>
 
 #### Normal mapping
