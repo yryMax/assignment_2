@@ -72,6 +72,30 @@ We prepare six textures in [+x, -x, +y, -y, +z, -z] axis representing the enviro
 
 Environment texture is from: https://github.com/Well-Jing/3D-version-Gaunlet/tree/main/Release/skybox_darksky
 
+#### Material textures
+Textures are from: https://www.textures.com/download/free-3d-scanned-stone-wall-2x2-3x3-4x4-meters/133264 and https://www.textures.com/download/sci-fi-panel-pbr0331/137280.
+
+Aside from the normal mapping and environment mapping we also added roughness, ambient occlusion and metallic textures. We use the values stored in these textures as inputs for our PBR shader. In our application we combined the PBR shader with the material textures, you can toggle the different textures in the menu. The roughness and metallic textures can only be toggled when the PBR shader is on since these values don't belong to our basic shading (Phong). Below we provide some screenshots of different combinations of our material textures, there are quite a few more combinations possible so launch the applicaton if you want to see more possiblities.
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./materialtexture1.png" alt="First Image" style="width:46%;">
+  <img src="./materialtexture2.png" alt="First Image" style="width:46%;">
+</div>
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./materialtexture3.png" alt="First Image" style="width:46%;">
+  <img src="./materialtexture4.png" alt="First Image" style="width:46%;">
+</div>
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./materialtexture5.png" alt="First Image" style="width:46%;">
+  <img src="./materialtexture6.png" alt="First Image" style="width:46%;">
+</div>
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="./materialtexture7.png" alt="First Image" style="width:46%;">
+</div>
+
 #### Smooth paths
 
 We simulate bullet trajectory using cubic Bézier curves. a Bézier curve is defined by 
