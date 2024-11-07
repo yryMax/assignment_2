@@ -1,4 +1,5 @@
 #version 410
+// Code based on https://learnopengl.com/PBR/Theory and https://learnopengl.com/PBR/Lighting
 
 layout(std140) uniform Material // Must match the GPUMaterial defined in src/mesh.h
 {
@@ -19,9 +20,11 @@ uniform vec3 cameraPos;
 
 uniform sampler2D roughnessMap;
 uniform sampler2D ambientMap;
+uniform sampler2D metallicMap;
 uniform int usePBR;
 uniform int useRoughness;
 uniform int useAmbient;
+uniform int useMetallic;
 
 in vec3 fragPosition;
 in vec3 fragNormal;
@@ -30,8 +33,8 @@ in mat3 TBN;
 
 
 uniform vec3 albedo;
-uniform float metallic;
-uniform float roughness;
+uniform float metallicInput;
+uniform float roughnessInput;
 uniform float ao;
 
 uniform vec3 lightPos;
@@ -76,10 +79,11 @@ void main()
     vec3 normal = normalize(fragNormal);
     vec2 texCoord = fragTexCoord; // Repeat texture
     vec3 basec = kd;
-    float roughness = 0.05f;
     float ambientOcclusion = 1.0f;
     vec3 albedo = albedo;
     vec3 ambient;
+    float metallic = metallicInput;
+    float roughness = roughnessInput;
     fragColor = vec4(0.0f);
     if (useTexture == 1)
     {
@@ -93,7 +97,12 @@ void main()
     if (useAmbient == 1)
     {
         ambientOcclusion = texture(ambientMap, texCoord).r;
+        //ambient constant "0.03" copied from "https://learnopengl.com/PBR/Lighting"
         ambient = vec3(0.03) * albedo * ambientOcclusion;
+    }
+    if (useMetallic == 1)
+    {
+        metallic = texture(metallicMap, texCoord).r;
     }
     vec3 normalMapColor = texture(normalMap, texCoord).rgb;
     if (useNormalMapping == 1)
@@ -108,11 +117,9 @@ void main()
         vec3 R = normalize(reflect(I, normal));
         vec3 envColor = texture(envMap, R).rgb;
         fragColor = vec4(envColor, 1);
-        //return;
     }
 
     if (usePBR == 1){
-        //vec3 lightPos = vec3(1, -1, 0);
         vec3 lightPos2[8] = {
             vec3(lightPos[0], lightPos[1], lightPos[2]),
             vec3(-lightPos[0], lightPos[1], lightPos[2]),
@@ -124,7 +131,8 @@ void main()
             vec3(lightPos[0], -lightPos[1], -lightPos[2]),
         };
 	    vec3 lightColor2 = lightColor;
-	    // These two code lines were copied from "source"
+
+	    // These two code lines were copied from "https://learnopengl.com/PBR/Lighting"
 	    // calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
         // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)    
         vec3 F0 = vec3(0.04); 
@@ -150,9 +158,8 @@ void main()
 		    vec3 radiance = lightColor2 / (length(lightPos2[i] - fragPosition) * length(lightPos2[i] - fragPosition));
 		    color += (kd * albedo / PI + BRDF) * radiance * max(dot(normal, lightDir), 0.0);
 	    }
-	    //vec3 ambient = vec3(0.03) * albedo * ambientOcclusion;
 	    color += ambient;
-	    // Copied from source:
+	    // These two code lines were copied from "https://learnopengl.com/PBR/Lighting"
 	    color = color / (color + vec3(1.0));
 	    color = pow(color, vec3(1.0/2.2));
 

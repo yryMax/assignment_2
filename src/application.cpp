@@ -50,6 +50,7 @@ public:
             m_env_map(faces),
             m_wall_roughness(RESOURCE_ROOT "resources/wall/roughness.jpg"),
             m_wall_ambient(RESOURCE_ROOT "resources/wall/ambient.jpg"),
+            m_wall_metallic(RESOURCE_ROOT "resources/wall/metallic.jpg"),
             m_trackball { &m_window, glm::radians(50.0f) },
             m_trackball2 { &m_window, glm::radians(50.0f) }
     {
@@ -66,6 +67,7 @@ public:
         m_wall = GPUMesh::loadMeshGPU(RESOURCE_ROOT "resources/wall/wall.obj");
         m_solarSystem = loadSolarSystem();
         m_planet = GPUMesh::loadMeshGPU(RESOURCE_ROOT "resources/planet/planet.obj");
+        m_fish = GPUMesh::loadMeshGPU(RESOURCE_ROOT "resources/fish.obj");
         try {
 
             ShaderBuilder wallBuilder;
@@ -92,16 +94,17 @@ public:
         glm::vec3 lookAt = glm::vec3(-0.215165, 0.305033, 0.645589);
         glm::vec3 rotations = glm::vec3(0.450295, 0.617848, 0.0);
         float dist = 3.0f;
-        glm::vec3 lookAt2 = glm::vec3(-0.215165, 1.305033, 0.645589);
-        glm::vec3 rotations2 = glm::vec3(0.450295, 0.617848, 0.0);
         float dist2 = 5.0f;
         m_trackball.setCamera(lookAt, rotations, dist);
-        m_trackball2.setCamera(lookAt2, rotations2, dist2);
+        m_trackball2.setCamera(lookAt, rotations, dist2);
         active_trackball = &m_trackball;
     }
 
     void update()
     {
+        glm::vec3 lookAt = glm::vec3(-0.215165, 0.305033, 0.645589);
+        glm::vec3 rotations = glm::vec3(0.450295, 0.617848, 0.0);
+        float dist2 = 5.0f;
         while (!m_window.shouldClose()) {
             // This is your game loop
             // Put your real-time logic and rendering in here
@@ -112,7 +115,6 @@ public:
 
             ImGui::Begin("Window");
 
-
             ImGui::Combo("Scene", &currentMode, displayModeNames, IM_ARRAYSIZE(displayModeNames));
             if (currentMode == 0) {
                 ImGui::Checkbox("Normal Mapping", &m_useNormalMapping);
@@ -120,8 +122,10 @@ public:
                 ImGui::Checkbox("Environment Map", &m_useEnvMap);
                 ImGui::Checkbox("PBR", &m_PBR);
                 if (m_PBR) {
+                    ImGui::SliderFloat("Roughness", &roughness, 0.05, 1);
                     ImGui::Checkbox("Roughness Texture", &m_useRoughness);
-                    ImGui::SliderFloat("Metallic", &metallic, 0.0, 1);
+                    ImGui::SliderFloat("Metallic", &metallic, 0.00, 1);
+                    ImGui::Checkbox("Metallic Texture", &m_useMetallic);
                 }
                 ImGui::Checkbox("Ambient Occlusion Texture", &m_useAmbient);
                 ImGui::ColorEdit3("albedo", &albedo[0]);
@@ -135,10 +139,13 @@ public:
                 if (ImGui::Button("Shoot")) {
                     m_curves = genCurves();
                 }
-                ImGui::SliderFloat("Roughness", &roughness, 0.05, 1);
-                ImGui::SliderFloat("Metallic", &metallic, 0.0, 1);
-                ImGui::ColorEdit3("albedo", &albedo[0]);
-                ImGui::ColorEdit3("lightColor", &lightColor[0]);
+            }
+            if (currentMode == 2) {
+                ImGui::SliderFloat("Distance second camera", &cameraDist, 0.0f, 75.0f);
+                ImGui::SliderFloat("Rotate X", &rotationsVec[0], 0.0f, 2*PI);
+                ImGui::SliderFloat("Rotate Y", &rotationsVec[1], 0.0f, 2*PI);
+                ImGui::SliderFloat("Rotate Z", &rotationsVec[2], 0.0f, 2*PI);
+                ImGui::Checkbox("Pause", &pause);
             }
             if (currentMode == 3) {
                 ImGui::SliderFloat("Roughness", &roughness, 0.05, 1);
@@ -152,20 +159,21 @@ public:
             // Clear the screen
             glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            /*m_projectionMatrix = m_trackball.projectionMatrix();*/
             m_projectionMatrix = active_trackball->projectionMatrix();
-            //m_viewMatrix = m_trackball.viewMatrix();
             m_viewMatrix = active_trackball->viewMatrix();
             switch (currentMode) {
                 case 0:
+                    m_trackball2.setCamera(lookAt, rotations, dist2);
                     renderBall();
                     break;
                 case 1:
+                    m_trackball2.setCamera(lookAt, rotations, dist2);
                     renderCurve();
                     break;
                 case 2:
                     renderSolarSystem();
                     break;
+                    m_trackball2.setCamera(lookAt, rotations, dist2);
                 case 3:
                     renderPBR();
                     break;
@@ -221,13 +229,17 @@ public:
             glUniform1i(m_wallShader.getUniformLocation("roughnessMap"), 4);
             m_wall_ambient.bind(GL_TEXTURE5);
             glUniform1i(m_wallShader.getUniformLocation("ambientMap"), 5);
+            m_wall_metallic.bind(GL_TEXTURE6);
+            glUniform1i(m_wallShader.getUniformLocation("metallicMap"), 6);
             glUniform1i(m_wallShader.getUniformLocation("usePBR"), m_PBR ? GL_TRUE : GL_FALSE);
             glUniform1i(m_wallShader.getUniformLocation("useRoughness"), m_useRoughness ? GL_TRUE : GL_FALSE);
+            glUniform1i(m_wallShader.getUniformLocation("useMetallic"), m_useMetallic ? GL_TRUE : GL_FALSE);
             glUniform1i(m_wallShader.getUniformLocation("useAmbient"), m_useAmbient ? GL_TRUE : GL_FALSE);
 
             glUniformMatrix4fv(m_wallShader.getUniformLocation("mvpMatrix"), 1, GL_FALSE, glm::value_ptr(mvpMatrix));
             glad_glUniform3fv(m_wallShader.getUniformLocation("albedo"), 1, glm::value_ptr(albedo));
-            glUniform1f(m_wallShader.getUniformLocation("metallic"), metallic);
+            glUniform1f(m_wallShader.getUniformLocation("metallicInput"), metallic);
+            glUniform1f(m_wallShader.getUniformLocation("roughnessInput"), roughness);
 
             glad_glUniform3fv(m_wallShader.getUniformLocation("lightPos"), 1, glm::value_ptr(m_trackball2.position()));
             glad_glUniform3fv(m_wallShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
@@ -241,19 +253,13 @@ public:
     void renderPBR() {
         glEnable(GL_DEPTH_TEST);
 
-        //m_modelMatrix = glm::mat4 { 1.0f };
-        //m_viewMatrix = m_trackball.viewMatrix();
-        //m_projectionMatrix = m_trackball.projectionMatrix();
         const glm::mat4 mvpMatrix = m_projectionMatrix * m_viewMatrix * m_modelMatrix;
         const glm::mat3 normalModelMatrix = glm::inverseTranspose(glm::mat3(m_modelMatrix));
 
         // Draw the wall
-        for (GPUMesh& mesh : m_ball) {
+        for (GPUMesh& mesh : m_fish) {
             m_PBRShader.bind();
 
-            //glVertexAttribPointer(m_PBRShader.getAttributeLocation("position"), 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
-            //glVertexAttribPointer(m_PBRShader.getAttributeLocation("normal"), 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
-            //glUniformMatrix4fv(m_PBRShader.getUniformLocation("modelMatrix"), 1, GL_FALSE, glm::value_ptr(m_modelMatrix));
             glUniformMatrix4fv(m_PBRShader.getUniformLocation("mvpMatrix"), 1, GL_FALSE, glm::value_ptr(mvpMatrix));
             glad_glUniform3fv(m_PBRShader.getUniformLocation("albedo"), 1, glm::value_ptr(albedo));
             glUniform1f(m_PBRShader.getUniformLocation("metallic"), metallic);
@@ -306,8 +312,7 @@ public:
 
 
     void renderCurve(){
-        //m_defaultShader.bind();
-        m_PBRShader.bind();
+        m_defaultShader.bind();
         glm::vec3 start_pos = glm::vec3(6.0f, 0.0f, 0.0f);
         glm::vec3 end_pos = glm::vec3(-6.0f, 0.0f, 0.0f);
         glm::vec3 offset = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -315,39 +320,19 @@ public:
         glm::mat4 ballModelMatrix = glm::translate(m_modelMatrix, start_pos);
         glm::mat4 mvp = m_projectionMatrix * m_viewMatrix * m_modelMatrix;
         // Draw the wall
-        //glUniform1i(m_PBRShader.getUniformLocation("useMaterial"), GL_FALSE);
+        glUniform1i(m_defaultShader.getUniformLocation("useMaterial"), GL_FALSE);
         for (GPUMesh& mesh : m_wall) {
-            glUniformMatrix4fv(m_PBRShader.getUniformLocation("mvpMatrix"), 1, GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * wallModelMatrix));
-            glad_glUniform3fv(m_PBRShader.getUniformLocation("albedo"), 1, glm::value_ptr(albedo));
-            glUniform1f(m_PBRShader.getUniformLocation("metallic"), metallic);
-            glUniform1f(m_PBRShader.getUniformLocation("roughness"), 1.0f);
-
-            glad_glUniform3fv(m_PBRShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(active_trackball->position()));
-            glad_glUniform3fv(m_PBRShader.getUniformLocation("lightPos"), 1, glm::value_ptr(m_trackball2.position()));
-            glad_glUniform3fv(m_PBRShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
-            mesh.draw(m_PBRShader);
-            /*glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
+            glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
                                GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * wallModelMatrix));
-            mesh.draw(m_defaultShader);*/
+            mesh.draw(m_defaultShader);
         }
         for (GPUMesh& mesh : m_ball) {
-            glUniformMatrix4fv(m_PBRShader.getUniformLocation("mvpMatrix"), 1, GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * ballModelMatrix));
-            glad_glUniform3fv(m_PBRShader.getUniformLocation("albedo"), 1, glm::value_ptr(albedo));
-            glUniform1f(m_PBRShader.getUniformLocation("metallic"), metallic);
-            glUniform1f(m_PBRShader.getUniformLocation("roughness"), roughness);
-
-            glad_glUniform3fv(m_PBRShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(active_trackball->position()));
-            glad_glUniform3fv(m_PBRShader.getUniformLocation("lightPos"), 1, glm::value_ptr(m_trackball2.position()));
-            glad_glUniform3fv(m_PBRShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
-            mesh.draw(m_PBRShader);
-            /*glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
+            glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
                                GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * ballModelMatrix));
-            mesh.draw(m_defaultShader);*/
+            mesh.draw(m_defaultShader);
         }
-        glUniformMatrix4fv(m_PBRShader.getUniformLocation("mvpMatrix"), 1,
-            GL_FALSE, glm::value_ptr(mvp));
-        /*glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
-                           GL_FALSE, glm::value_ptr( mvp));*/
+        glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
+                           GL_FALSE, glm::value_ptr( mvp));
         if(m_showcurve) {
             for (BezierCurve curve: m_curves) {
                 curve.draw();
@@ -358,21 +343,10 @@ public:
      //     std::cout<< pos.x << " " << pos.y << " " << pos.z << std::endl;
             if (pos == glm::vec3(-1.0f)) continue;
           glm::mat4 bulletModelMatrix = translationMatrix(pos) * scaleMatrix(glm::vec3(0.1f, 0.1f, 0.1f));
-
-          glUniformMatrix4fv(m_PBRShader.getUniformLocation("mvpMatrix"), 1, GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * bulletModelMatrix));
-          glad_glUniform3fv(m_PBRShader.getUniformLocation("albedo"), 1, glm::value_ptr(albedo));
-          glUniform1f(m_PBRShader.getUniformLocation("metallic"), 1.0f);
-          glUniform1f(m_PBRShader.getUniformLocation("roughness"), 0.5f);
-
-          glad_glUniform3fv(m_PBRShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(active_trackball->position()));
-          glad_glUniform3fv(m_PBRShader.getUniformLocation("lightPos"), 1, glm::value_ptr(m_trackball2.position()));
-          glad_glUniform3fv(m_PBRShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
-
-            /*glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
-                                 GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * bulletModelMatrix));*/
+            glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
+                                 GL_FALSE, glm::value_ptr(m_projectionMatrix * m_viewMatrix * bulletModelMatrix));
           for (GPUMesh& mesh : m_wall) {
-                mesh.draw(m_PBRShader);
-                //mesh.draw(m_defaultShader);
+                mesh.draw(m_defaultShader);
           }
 
       }
@@ -483,7 +457,9 @@ public:
         // time
         std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
         // timespan in seconds
-        float time = std::chrono::duration<float>(now - start).count();
+        if (!pause) {
+            time = std::chrono::duration<float>(now - start).count();
+        }
         std::vector<glm::mat4> transforms = computeCelestrialBodyTransformations(time);
         m_defaultShader.bind();
 
@@ -491,10 +467,10 @@ public:
         glUniform1i(m_defaultShader.getUniformLocation("colorMap"), 0);
         int i = 0;
 
-        for (CelestialBody&body : m_solarSystem) {
+        for (CelestialBody& body : m_solarSystem) {
             glm::mat4 mvp = m_projectionMatrix * m_viewMatrix * transforms[i];
             glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"), 1,
-                               GL_FALSE, glm::value_ptr(mvp));
+                GL_FALSE, glm::value_ptr(mvp));
             body.getTexture().bind(GL_TEXTURE0);
             for (GPUMesh& mesh : m_planet) {
                 mesh.draw(m_defaultShader);
@@ -506,15 +482,13 @@ public:
         glm::mat4 sunTransform = transforms[0];
         glm::vec3 sunPosition = glm::vec3(moonTransform[3]);
 
-        glm::vec3 cameraOffset = glm::vec3(0.0f, 0.0f, 50.0f);
+        glm::vec3 cameraOffset = glm::vec3(0.0f, 0.0f, cameraDist);
         glm::vec3 cameraPosition = moonPosition + cameraOffset;
 
         glm::vec3 lookAtPoint = sunPosition;
 
         float distance = glm::distance(cameraPosition, lookAtPoint);
-        glm::vec3 rotations(0.0f);
-        float dist = 3.0f;
-        m_trackball2.setCamera(lookAtPoint, rotations, distance);
+        m_trackball2.setCamera(lookAtPoint, rotationsVec, distance);
     }
 
 
@@ -527,17 +501,20 @@ private:
     std::vector<GPUMesh> m_ball;
     std::vector<GPUMesh> m_wall;
     std::vector<GPUMesh> m_planet;
+    std::vector<GPUMesh> m_fish;
     bool m_useNormalMapping = false;
     bool m_useTexture = true;
     bool m_useEnvMap = false;
     bool m_PBR = false;
     bool m_useRoughness = false;
     bool m_useAmbient = false;
+    bool m_useMetallic = false;
     float m_speed = 9.0f;
     bool m_showcurve = false;
     Texture m_wall_texture;
     Texture m_wall_roughness;
     Texture m_wall_ambient;
+    Texture m_wall_metallic;
     Texture m_wall_normal;
     CubeMapTexture m_env_map;
     Trackball m_trackball;
@@ -545,7 +522,12 @@ private:
     Trackball* active_trackball;
     std::vector<BezierCurve> m_curves;
     std::vector<CelestialBody> m_solarSystem;
-
+    //Varibles to control camera in the SolarSystem scene
+    float cameraDist = 50.0f;
+    glm::vec3 rotationsVec = glm::vec3(0.0f);
+    const float PI = 3.14159265359;
+    bool pause = false;
+    float time;
 
     // PBR
     float roughness = 0.05;

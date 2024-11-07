@@ -1,4 +1,5 @@
 #version 410
+// Code based on https://learnopengl.com/PBR/Theory and https://learnopengl.com/PBR/Lighting
 
 layout(std140) uniform Material // Must match the GPUMaterial defined in src/mesh.h
 {
@@ -7,10 +8,6 @@ layout(std140) uniform Material // Must match the GPUMaterial defined in src/mes
 	float shininess;
 	float transparency;
 };
-
-uniform sampler2D colorMap;
-//uniform bool hasTexCoords;
-//uniform bool useMaterial;
 
 in vec3 fragPosition;
 in vec3 fragNormal;
@@ -73,7 +70,7 @@ void main()
         vec3(lightPos[0], -lightPos[1], -lightPos[2]),
     };
 	vec3 lightColor2 = lightColor;
-	// These two code lines were copied from "source"
+	// These two code lines were copied from "https://learnopengl.com/PBR/Lighting"
 	// calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
     // of 0.04 and if it's a metal, use the albedo color as F0 (metallic workflow)    
     vec3 F0 = vec3(0.04); 
@@ -100,40 +97,13 @@ void main()
 		vec3 radiance = lightColor2 / (length(lightPos2[i] - fragPosition) * length(lightPos2[i] - fragPosition));
 		color += (kd * albedo / PI + BRDF) * radiance * max(dot(normal, lightDir), 0.0);
 	}
+	//ambient constant "0.03" copied from "https://learnopengl.com/PBR/Lighting"
 	vec3 ambient = vec3(0.03) * albedo;
 	color += ambient;
-	// Copied from source:
+	// These two code lines were copied from "https://learnopengl.com/PBR/Lighting"
 	color = color / (color + vec3(1.0));
 	color = pow(color, vec3(1.0/2.2));
 
 	fragColor = vec4(color, 1.0);
 	return;
-
-
-
-	// Calculate the D, G and F parts 
-	vec3 normal = normalize(fragNormal);
-	vec3 viewDir = normalize(cameraPos - fragPosition);
-	vec3 lightDir = normalize(lightPos - fragPosition);
-	vec3 halfwayVector = normalize(lightDir + viewDir);
-	float D = normalDistribution(normal, halfwayVector, roughness);
-	float G = geometry(normal, viewDir, lightDir, roughness);
-	vec3 F = fresnel(halfwayVector, viewDir, F0);
-
-	// Calculate the BRDF
-	float intermediate = 4 * max(dot(normal, viewDir), 0.0) * max(dot(normal, lightDir), 0.0) + 0.001;
-	vec3 BRDF = D * G * F / intermediate;
-
-	vec3 ks = F;
-	vec3 kd = vec3(1.0f) - ks;
-	kd = kd * (1.0 - metallic);
-
-	vec3 radiance = lightColor / (length(lightPos - fragPosition) * length(lightPos - fragPosition));
-	color = (kd * albedo / PI + BRDF) * radiance * max(dot(normal, lightDir), 0.0);
-	color *= 4;
-	// Copied from source:
-	color = color / (color + vec3(1.0));
-	color = pow(color, vec3(1.0/2.2));
-
-	fragColor = vec4(color, 1.0);
 }
