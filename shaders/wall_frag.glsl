@@ -156,7 +156,7 @@ void main()
         vec3 currLightPos;
         // Calculate the rendering equation for every light
 	    for (int i = 0; i < j; i++){
-            if (i == 1){
+            if (i == 1 && dayNight == 1){
                 lightColor = moonColor;
             }
             if (dayNight == 1) {
